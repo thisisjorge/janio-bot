@@ -1,0 +1,11 @@
+services:
+  janio-bot:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      - janio-data:/app/data
+
+volumes:
+  janio-data:

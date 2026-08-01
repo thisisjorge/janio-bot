@@ -1,0 +1,52 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "janio-bot"
+version = "0.1.0"
+description = "Bot Discord em Python com previsões comunitárias e integrações opcionais de LoL."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Janio Bot contributors" }]
+dependencies = [
+  "aiosqlite==0.22.1",
+  "discord.py[voice]==2.7.1",
+  "httpx==0.28.1",
+  "python-dotenv==1.1.1",
+  "yt-dlp[default]==2026.6.9",
+]
+
+[project.optional-dependencies]
+dev = [
+  "mypy>=1.17,<2",
+  "pytest>=8.4,<9",
+  "pytest-asyncio>=1.1,<2",
+  "pytest-cov>=6.2,<7",
+  "ruff>=0.12,<1",
+  "types-yt-dlp>=2026.3.17,<2027",
+]
+
+[project.scripts]
+janio-bot = "janio_bot.__main__:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/janio_bot"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC", "SIM"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+packages = ["janio_bot"]
