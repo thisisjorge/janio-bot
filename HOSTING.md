@@ -55,7 +55,8 @@ Opcional durante desenvolvimento:
 TEST_GUILD_ID=<id do servidor de teste>
 ```
 
-Sem `TEST_GUILD_ID`, os comandos são sincronizados globalmente.
+Os comandos são sempre sincronizados globalmente. Quando `TEST_GUILD_ID` é
+definido, o bot também mantém uma cópia imediata no servidor de teste.
 
 Para o modo `league`, troque `JANIO_MODE` e configure `RIOT_API_KEY` se quiser
 usar `/lol jogador`.
