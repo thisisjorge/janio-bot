@@ -8,6 +8,8 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from janio_bot.runtime import resolve_ffmpeg_path
+
 
 class ConfigurationError(ValueError):
     """Raised when environment configuration is invalid."""
@@ -111,7 +113,7 @@ class Settings:
                 "DEFAULT_ANNOUNCEMENT_INTERVAL_SECONDS", 210
             ),
             default_announcement_message=message,
-            ffmpeg_path=os.getenv("FFMPEG_PATH", "ffmpeg").strip() or "ffmpeg",
+            ffmpeg_path=resolve_ffmpeg_path(os.getenv("FFMPEG_PATH")),
             sync_commands=_boolean("SYNC_COMMANDS", True),
             log_level=log_level,
         )

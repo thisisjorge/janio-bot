@@ -19,6 +19,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+hosting = [
+  "deno==2.9.3",
+  "imageio-ffmpeg==0.6.0",
+]
 dev = [
   "mypy>=1.17,<2",
   "pytest>=8.4,<9",
