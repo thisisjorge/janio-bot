@@ -134,3 +134,8 @@ async def test_retry_after_is_sanitized_and_bounded(
     message = str(captured.value)
     assert str(expected_seconds) in message
     assert header_value not in message
+
+
+def test_retry_after_rounding_ignores_clock_noise() -> None:
+    assert RiotClient._ceil_retry_after(30.0000000001) == 30
+    assert RiotClient._ceil_retry_after(30.0001) == 31

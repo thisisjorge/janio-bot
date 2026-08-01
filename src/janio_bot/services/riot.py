@@ -40,6 +40,7 @@ PROFILE_CACHE_MAX_ENTRIES = 256
 MAX_CONCURRENT_REQUESTS = 4
 DEFAULT_RETRY_AFTER_SECONDS = 30
 MAX_RETRY_AFTER_SECONDS = 300
+RATE_LIMIT_CLOCK_EPSILON_SECONDS = 1e-6
 
 ProfileCacheKey = tuple[str, str, str]
 
@@ -256,7 +257,7 @@ class RiotClient:
         async with self._rate_limit_lock:
             remaining = self._rate_limited_until - time.monotonic()
         if remaining > 0:
-            raise self._rate_limit_error(math.ceil(remaining))
+            raise self._rate_limit_error(self._ceil_retry_after(remaining))
 
     async def _record_rate_limit(self, retry_after: int) -> int:
         async with self._rate_limit_lock:
@@ -265,7 +266,14 @@ class RiotClient:
                 self._rate_limited_until,
                 now + retry_after,
             )
-            return max(1, math.ceil(self._rate_limited_until - now))
+            return self._ceil_retry_after(self._rate_limited_until - now)
+
+    @staticmethod
+    def _ceil_retry_after(remaining: float) -> int:
+        return max(
+            1,
+            math.ceil(remaining - RATE_LIMIT_CLOCK_EPSILON_SECONDS),
+        )
 
     @staticmethod
     def _parse_retry_after(raw_value: str | None) -> int:
