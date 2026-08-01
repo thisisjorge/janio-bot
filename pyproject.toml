@@ -12,17 +12,15 @@ license = { text = "MIT" }
 authors = [{ name = "Janio Bot contributors" }]
 dependencies = [
   "aiosqlite==0.22.1",
+  "deno==2.9.3",
   "discord.py[voice]==2.7.1",
   "httpx==0.28.1",
+  "imageio-ffmpeg==0.6.0",
   "python-dotenv==1.1.1",
   "yt-dlp[default]==2026.6.9",
 ]
 
 [project.optional-dependencies]
-hosting = [
-  "deno==2.9.3",
-  "imageio-ffmpeg==0.6.0",
-]
 dev = [
   "mypy>=1.17,<2",
   "pytest>=8.4,<9",
