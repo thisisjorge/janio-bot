@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
+from unittest.mock import ANY, AsyncMock, call
 
 import pytest
 
@@ -44,5 +46,37 @@ async def test_runtime_mode_loads_only_its_command_group(
         commands = {command.name for command in bot.tree.get_commands()}
         assert present in commands
         assert absent not in commands
+
+        prefix_commands = {command.name for command in bot.commands}
+        assert {"ajuda", "janio", "ping", "pontos", "aviso", "musica"}.issubset(
+            prefix_commands
+        )
+        assert present in prefix_commands
+        assert absent not in prefix_commands
+        assert bot.intents.messages
+        assert bot.intents.message_content
+    finally:
+        await bot.close()
+
+
+async def test_test_guild_sync_also_registers_global_commands(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    settings = replace(
+        settings_for(RuntimeMode.COMMUNITY, tmp_path / "global-sync.sqlite3"),
+        sync_commands=True,
+        test_guild_id=123456789,
+    )
+    bot = JanioBot(settings)
+    sync = AsyncMock(return_value=[])
+    monkeypatch.setattr(bot.tree, "sync", sync)
+
+    try:
+        await bot.setup_hook()
+        assert sync.await_args_list == [
+            call(guild=ANY),
+            call(),
+        ]
     finally:
         await bot.close()

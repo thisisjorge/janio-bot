@@ -22,6 +22,7 @@ BASE_EXTENSIONS = (
     "janio_bot.cogs.points",
     "janio_bot.cogs.announcements",
     "janio_bot.cogs.music",
+    "janio_bot.cogs.prefix",
 )
 
 MODE_EXTENSION = {
@@ -72,13 +73,16 @@ class JanioBot(commands.Bot):
     def __init__(self, settings: Settings) -> None:
         intents = discord.Intents.none()
         intents.guilds = True
+        intents.messages = True
+        intents.message_content = True
         intents.voice_states = True
         super().__init__(
-            command_prefix=commands.when_mentioned,
+            command_prefix=commands.when_mentioned_or("!"),
             intents=intents,
             tree_cls=JanioCommandTree,
             allowed_mentions=discord.AllowedMentions.none(),
             help_command=None,
+            case_insensitive=True,
         )
         self.settings = settings
         self.database = Database(
@@ -118,13 +122,59 @@ class JanioBot(commands.Bot):
                 len(synced),
                 guild.id,
             )
-        else:
-            synced = await self.tree.sync()
-            LOGGER.info("%d comandos globais sincronizados.", len(synced))
+
+        synced = await self.tree.sync()
+        LOGGER.info("%d comandos globais sincronizados.", len(synced))
 
     async def on_ready(self) -> None:
         if self.user is not None:
             LOGGER.info("Janio Bot conectado como %s (%d).", self.user, self.user.id)
+
+    async def on_command_error(
+        self,
+        context: commands.Context[JanioBot],  # type: ignore[override]
+        error: commands.CommandError,
+    ) -> None:
+        if isinstance(error, commands.CommandNotFound):
+            return
+
+        original = error.original if isinstance(error, commands.CommandInvokeError) else error
+        if isinstance(original, JanioError):
+            await context.send(f"❌ {original}")
+            return
+        if isinstance(original, commands.MissingPermissions):
+            await context.send("❌ Você não tem permissão para usar este comando.")
+            return
+        if isinstance(original, commands.BotMissingPermissions):
+            missing = ", ".join(original.missing_permissions)
+            await context.send(f"❌ O bot não tem as permissões necessárias: {missing}.")
+            return
+        if isinstance(original, commands.NoPrivateMessage):
+            await context.send("❌ Este comando precisa ser usado dentro de um servidor.")
+            return
+        if isinstance(
+            original,
+            (commands.MissingRequiredArgument, commands.BadArgument, commands.BadUnionArgument),
+        ):
+            detail = str(original)
+            usage = (
+                f"{context.clean_prefix}{context.command.qualified_name} "
+                f"{context.command.signature}"
+                if context.command is not None
+                else f"{context.clean_prefix}ajuda"
+            )
+            await context.send(f"❌ {detail}\nUso: `{usage.strip()}`")
+            return
+        if isinstance(original, commands.CheckFailure):
+            await context.send("❌ Você não pode usar este comando neste contexto.")
+            return
+
+        LOGGER.exception(
+            "Erro inesperado no comando de texto %s",
+            context.command.qualified_name if context.command else "?",
+            exc_info=original,
+        )
+        await context.send("❌ Ocorreu um erro inesperado. Tente novamente em instantes.")
 
     async def close(self) -> None:
         await self.web_client.aclose()
