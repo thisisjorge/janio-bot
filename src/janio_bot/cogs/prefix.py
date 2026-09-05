@@ -218,11 +218,11 @@ class PrefixCommandsCog(commands.Cog):
     def __init__(self, bot: JanioBot) -> None:
         self.bot = bot
 
-    def _cog(self, cog_type: type[CogT]) -> CogT:
-        cog = self.bot.get_cog(cog_type.__name__)
-        if not isinstance(cog, cog_type):
-            raise commands.CommandError("Este recurso não está disponível agora.")
-        return cog
+    def _cog(self, cls: type[CogT]) -> CogT:
+        for cog in self.bot.cogs.values():
+            if isinstance(cog, cls):
+                return cog
+        raise commands.CommandError(f"O módulo {cls.__name__} não está disponível.")
 
     @commands.command(name="ajuda", aliases=("help", "comandos"))
     async def help_command(
@@ -421,10 +421,10 @@ class PrefixBettingCog(commands.Cog):
         self.bot = bot
 
     def _betting(self) -> BettingCog:
-        cog = self.bot.get_cog(BettingCog.__name__)
-        if not isinstance(cog, BettingCog):
-            raise commands.CommandError("As previsões não estão disponíveis agora.")
-        return cog
+        for cog in self.bot.cogs.values():
+            if isinstance(cog, BettingCog):
+                return cog
+        raise commands.CommandError("As previsões não estão disponíveis agora.")
 
     @commands.group(name="aposta", invoke_without_command=True)
     @commands.guild_only()
@@ -528,10 +528,10 @@ class PrefixLeagueCog(commands.Cog):
         self.bot = bot
 
     def _league(self) -> LeagueCog:
-        cog = self.bot.get_cog(LeagueCog.__name__)
-        if not isinstance(cog, LeagueCog):
-            raise commands.CommandError("Os comandos de LoL não estão disponíveis agora.")
-        return cog
+        for cog in self.bot.cogs.values():
+            if isinstance(cog, LeagueCog):
+                return cog
+        raise commands.CommandError("Os comandos de League of Legends não estão disponíveis agora.")
 
     @commands.group(name="lol", invoke_without_command=True)
     async def league_group(self, context: commands.Context[JanioBot]) -> None:
