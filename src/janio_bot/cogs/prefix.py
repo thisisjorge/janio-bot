@@ -127,26 +127,39 @@ def _as_interaction(context: commands.Context[JanioBot]) -> discord.Interaction:
 
 def _command_help(mode: RuntimeMode) -> discord.Embed:
     embed = make_embed(
-        title="📖 Comandos do Janio Bot",
+        title="📖 Central de Comandos do Janio Bot",
         description=(
-            "Use `j!` no lugar de `/`. Textos com espaço podem ser colocados entre aspas.\n"
-            "Os comandos com `/` continuam funcionando normalmente."
+            "Olá! Aqui estão todos os comandos que você pode utilizar.\n\n"
+            "💡 **Dica de uso:** Você pode usar `j!` no lugar da barra `/`. Se precisar digitar "
+            "textos com espaço (como o título de uma aposta), coloque-os entre aspas `\"\"`.\n"
+            "Os comandos com `/` originais continuam funcionando normalmente."
         ),
     )
     embed.add_field(
-        name="🛠️ Geral e pontos",
+        name="🛠️ Sistema Geral",
         value=(
-            "`j!janio` · `j!ping` · `j!ajuda`\n"
-            "`j!pontos saldo [@membro]` · `j!pontos diario` · `j!pontos ranking`"
+            "**`j!ajuda`** — Mostra este menu detalhado.\n"
+            "**`j!ping`** — Testa a velocidade e conexão do bot.\n"
+            "**`j!janio`** — Exibe informações gerais sobre o bot."
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name="💰 Economia e Pontos",
+        value=(
+            "**`j!pontos saldo [@membro]`** — Veja o saldo da sua conta ou de outro membro.\n"
+            "**`j!pontos diario`** — Resgate seu bônus diário gratuito (a cada 24h).\n"
+            "**`j!pontos ranking`** — Consulte o top 10 dos membros mais ricos."
         ),
         inline=False,
     )
     if mode is RuntimeMode.COMMUNITY:
         embed.add_field(
-            name="🎯 Previsões",
+            name="🎯 Previsões e Apostas",
             value=(
-                "`j!aposta abertas` · `j!aposta ver <id>`\n"
-                "`j!aposta apostar <id> <A|B> <valor>`"
+                "**`j!aposta abertas`** — Veja todos os mercados abertos para apostar.\n"
+                "**`j!aposta ver <id>`** — Mostra o placar e detalhes de uma aposta.\n"
+                "**`j!aposta apostar <id> <A|B> <valor>`** — Aposte no lado vencedor."
             ),
             inline=False,
         )
@@ -154,39 +167,52 @@ def _command_help(mode: RuntimeMode) -> discord.Embed:
         embed.add_field(
             name="⚔️ League of Legends",
             value=(
-                "`j!lol build <campeão>` · `j!lol runas <campeão>`\n"
-                "`j!lol jogador <nome> <tag> [região]`"
+                "**`j!lol build <campeão>`** — Sugere os melhores itens do meta atual.\n"
+                "**`j!lol runas <campeão>`** — Traz as runas mais fortes para o campeão.\n"
+                "**`j!lol jogador <nome> <tag> [região]`** — Busca o histórico do jogador."
             ),
             inline=False,
         )
     embed.add_field(
-        name="🎵 Música e aviso",
+        name="🎵 Música e Entretenimento",
         value=(
-            "`j!musica tocar <busca>` · `j!musica fila` · `j!musica pular`\n"
-            "`j!aviso status`"
+            "**`j!p <busca>`** ou **`j!musica tocar <busca>`** — Adiciona áudio do YouTube.\n"
+            "**`j!musica fila`** — Mostra a lista de faixas que vão tocar a seguir.\n"
+            "**`j!musica pausar`** / **`continuar`** — Pausa ou retoma a música.\n"
+            "**`j!musica pular`** — Pula direto para a próxima música da fila.\n"
+            "**`j!musica parar`** / **`sair`** — Encerra a fila e desconecta o bot."
         ),
         inline=False,
     )
-    embed.set_footer(text="Use j!ajuda moderacao para ver os comandos administrativos.")
+    embed.set_footer(text="🔧 Quer ver os comandos de administrador? Digite: j!ajuda moderacao")
     return embed
 
 
 def _moderation_help(mode: RuntimeMode) -> discord.Embed:
     lines = [
-        "`j!pontos dar @membro <valor> [motivo]`",
-        "`j!aviso configurar #canal [segundos] [mensagem]`",
-        "`j!aviso ativar` · `j!aviso desativar` · `j!aviso testar`",
+        "Estes comandos são restritos apenas a membros com permissão de Gerenciar Servidor.\n",
+        "**`j!pontos dar @membro <valor> [motivo]`**",
+        "↳ Cria pontos e os adiciona diretamente na conta do membro.\n",
+        "**`j!aviso configurar #canal [segundos] [mensagem]`**",
+        "↳ Configura uma mensagem automática que se repete no canal escolhido.\n",
+        "**`j!aviso ativar`** · **`j!aviso desativar`** · **`j!aviso testar`**",
+        "↳ Controles de status para ligar/desligar o sistema de avisos."
     ]
     if mode is RuntimeMode.COMMUNITY:
         lines.extend(
             [
-                '`j!aposta criar "título" "opção A" "opção B" [minutos]`',
-                "`j!aposta fechar <id>` · `j!aposta resolver <id> <A|B>`",
-                "`j!aposta cancelar <id>`",
+                "\n**`j!aposta criar \"título\" \"opção A\" \"opção B\" [minutos]`**",
+                "↳ Cria um mercado de apostas. Textos com espaço devem estar entre aspas `\"\"`.\n",
+                "**`j!aposta fechar <id>`**",
+                "↳ Bloqueia novas apostas (os membros aguardam o resultado).\n",
+                "**`j!aposta resolver <id> <A|B>`**",
+                "↳ Encerra o evento e distribui todo o pote para quem apostou certo.\n",
+                "**`j!aposta cancelar <id>`**",
+                "↳ Cancela o evento e devolve 100% dos pontos aos participantes."
             ]
         )
     return make_embed(
-        title="🛡️ Comandos de moderação",
+        title="🛡️ Painel de Moderação",
         description="\n".join(lines),
         color=Colors.WARNING,
     )
