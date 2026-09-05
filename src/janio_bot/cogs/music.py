@@ -182,6 +182,8 @@ class MusicCog(
             description=f"**{discord.utils.escape_markdown(track.title)}**\n⏱️ Duração: `{_duration(track.duration_seconds)}`\n🔢 Posição: `{position}`",
             color=Colors.SUCCESS
         )
+        if track.thumbnail_url:
+            embed.set_thumbnail(url=track.thumbnail_url)
         await interaction.edit_original_response(content=None, embed=embed)
 
     @app_commands.command(name="fila", description="Mostra a fila de reprodução.")
@@ -361,13 +363,13 @@ class MusicCog(
                 if source is not None:
                     source.cleanup()
                 continue
-            await self._notify(
-                state,
-                embed=make_embed(
-                    title="▶️ Tocando agora",
-                    description=f"**{discord.utils.escape_markdown(track.title)}**\n⏱️ Duração: `{_duration(track.duration_seconds)}`"
-                )
+            embed = make_embed(
+                title="▶️ Tocando agora",
+                description=f"**{discord.utils.escape_markdown(track.title)}**\n⏱️ Duração: `{_duration(track.duration_seconds)}`"
             )
+            if track.thumbnail_url:
+                embed.set_thumbnail(url=track.thumbnail_url)
+            await self._notify(state, embed=embed)
             return
 
     def _after_track(
