@@ -128,7 +128,7 @@ def _command_help(mode: RuntimeMode) -> discord.Embed:
     embed = discord.Embed(
         title="📖 Comandos do Janio Bot",
         description=(
-            "Use `!` no lugar de `/`. Textos com espaço podem ser colocados entre aspas.\n"
+            "Use `j!` no lugar de `/`. Textos com espaço podem ser colocados entre aspas.\n"
             "Os comandos com `/` continuam funcionando normalmente."
         ),
         color=discord.Color.blurple(),
@@ -136,8 +136,8 @@ def _command_help(mode: RuntimeMode) -> discord.Embed:
     embed.add_field(
         name="Geral e pontos",
         value=(
-            "`!janio` · `!ping` · `!ajuda`\n"
-            "`!pontos saldo [@membro]` · `!pontos diario` · `!pontos ranking`"
+            "`j!janio` · `j!ping` · `j!ajuda`\n"
+            "`j!pontos saldo [@membro]` · `j!pontos diario` · `j!pontos ranking`"
         ),
         inline=False,
     )
@@ -145,8 +145,8 @@ def _command_help(mode: RuntimeMode) -> discord.Embed:
         embed.add_field(
             name="Previsões",
             value=(
-                "`!aposta abertas` · `!aposta ver <id>`\n"
-                "`!aposta apostar <id> <A|B> <valor>`"
+                "`j!aposta abertas` · `j!aposta ver <id>`\n"
+                "`j!aposta apostar <id> <A|B> <valor>`"
             ),
             inline=False,
         )
@@ -154,35 +154,35 @@ def _command_help(mode: RuntimeMode) -> discord.Embed:
         embed.add_field(
             name="League of Legends",
             value=(
-                "`!lol build <campeão>` · `!lol runas <campeão>`\n"
-                "`!lol jogador <nome> <tag> [região]`"
+                "`j!lol build <campeão>` · `j!lol runas <campeão>`\n"
+                "`j!lol jogador <nome> <tag> [região]`"
             ),
             inline=False,
         )
     embed.add_field(
         name="Música e aviso",
         value=(
-            "`!musica tocar <busca>` · `!musica fila` · `!musica pular`\n"
-            "`!aviso status`"
+            "`j!musica tocar <busca>` · `j!musica fila` · `j!musica pular`\n"
+            "`j!aviso status`"
         ),
         inline=False,
     )
-    embed.set_footer(text="Use !ajuda moderacao para ver os comandos administrativos.")
+    embed.set_footer(text="Use j!ajuda moderacao para ver os comandos administrativos.")
     return embed
 
 
 def _moderation_help(mode: RuntimeMode) -> discord.Embed:
     lines = [
-        "`!pontos dar @membro <valor> [motivo]`",
-        "`!aviso configurar #canal [segundos] [mensagem]`",
-        "`!aviso ativar` · `!aviso desativar` · `!aviso testar`",
+        "`j!pontos dar @membro <valor> [motivo]`",
+        "`j!aviso configurar #canal [segundos] [mensagem]`",
+        "`j!aviso ativar` · `j!aviso desativar` · `j!aviso testar`",
     ]
     if mode is RuntimeMode.COMMUNITY:
         lines.extend(
             [
-                '`!aposta criar "título" "opção A" "opção B" [minutos]`',
-                "`!aposta fechar <id>` · `!aposta resolver <id> <A|B>`",
-                "`!aposta cancelar <id>`",
+                '`j!aposta criar "título" "opção A" "opção B" [minutos]`',
+                "`j!aposta fechar <id>` · `j!aposta resolver <id> <A|B>`",
+                "`j!aposta cancelar <id>`",
             ]
         )
     return discord.Embed(
@@ -235,8 +235,8 @@ class PrefixCommandsCog(commands.Cog):
     @commands.guild_only()
     async def points(self, context: commands.Context[JanioBot]) -> None:
         await context.send(
-            "Use `!pontos saldo`, `!pontos diario`, `!pontos ranking` ou "
-            "`!pontos dar`."
+            "Use `j!pontos saldo`, `j!pontos diario`, `j!pontos ranking` ou "
+            "`j!pontos dar`."
         )
 
     @points.command(name="saldo")
@@ -283,8 +283,8 @@ class PrefixCommandsCog(commands.Cog):
     @commands.guild_only()
     async def announcement(self, context: commands.Context[JanioBot]) -> None:
         await context.send(
-            "Use `!aviso configurar`, `!aviso ativar`, `!aviso desativar`, "
-            "`!aviso status` ou `!aviso testar`."
+            "Use `j!aviso configurar`, `j!aviso ativar`, `j!aviso desativar`, "
+            "`j!aviso status` ou `j!aviso testar`."
         )
 
     @announcement.command(name="configurar")
@@ -335,8 +335,8 @@ class PrefixCommandsCog(commands.Cog):
     @commands.guild_only()
     async def music(self, context: commands.Context[JanioBot]) -> None:
         await context.send(
-            "Use `!musica tocar`, `!musica fila`, `!musica pausar`, "
-            "`!musica continuar`, `!musica pular`, `!musica parar` ou `!musica sair`."
+            "Use `j!musica tocar`, `j!musica fila`, `j!musica pausar`, "
+            "`j!musica continuar`, `j!musica pular`, `j!musica parar` ou `j!musica sair`."
         )
 
     @music.command(name="tocar", aliases=("play",))
@@ -379,6 +379,17 @@ class PrefixCommandsCog(commands.Cog):
         cog = self._cog(MusicCog)
         await MusicCog.leave.callback(cog, _as_interaction(context))
 
+    @commands.command(name="p", aliases=("play",))
+    @commands.guild_only()
+    async def play_shortcut(
+        self,
+        context: commands.Context[JanioBot],
+        *,
+        busca: str,
+    ) -> None:
+        cog = self._cog(MusicCog)
+        await MusicCog.play.callback(cog, _as_interaction(context), busca)
+
 
 class PrefixBettingCog(commands.Cog):
     def __init__(self, bot: JanioBot) -> None:
@@ -394,9 +405,9 @@ class PrefixBettingCog(commands.Cog):
     @commands.guild_only()
     async def bet_group(self, context: commands.Context[JanioBot]) -> None:
         await context.send(
-            "Use `!aposta abertas`, `!aposta ver`, `!aposta apostar`, "
-            "`!aposta criar`, `!aposta fechar`, `!aposta resolver` ou "
-            "`!aposta cancelar`."
+            "Use `j!aposta abertas`, `j!aposta ver`, `j!aposta apostar`, "
+            "`j!aposta criar`, `j!aposta fechar`, `j!aposta resolver` ou "
+            "`j!aposta cancelar`."
         )
 
     @bet_group.command(name="criar")
@@ -499,7 +510,7 @@ class PrefixLeagueCog(commands.Cog):
 
     @commands.group(name="lol", invoke_without_command=True)
     async def league_group(self, context: commands.Context[JanioBot]) -> None:
-        await context.send("Use `!lol build`, `!lol runas` ou `!lol jogador`.")
+        await context.send("Use `j!lol build`, `j!lol runas` ou `j!lol jogador`.")
 
     @league_group.command(name="build")
     async def build(

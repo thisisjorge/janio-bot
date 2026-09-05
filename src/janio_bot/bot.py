@@ -77,7 +77,7 @@ class JanioBot(commands.Bot):
         intents.message_content = True
         intents.voice_states = True
         super().__init__(
-            command_prefix=commands.when_mentioned_or("!"),
+            command_prefix=commands.when_mentioned_or("j!", "J!"),
             intents=intents,
             tree_cls=JanioCommandTree,
             allowed_mentions=discord.AllowedMentions.none(),
