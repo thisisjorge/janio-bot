@@ -307,14 +307,17 @@ class MusicCog(
             stale = False
             try:
                 track = await self.bot.music_extractor.refresh(track)
+                before_options = "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
+                if track.http_headers:
+                    headers_list = [f"{k}: {v}" for k, v in track.http_headers.items()]
+                    headers_str = "\\r\\n".join(headers_list) + "\\r\\n"
+                    before_options += f" -headers \"{headers_str}\""
+
                 source = discord.PCMVolumeTransformer(
                     discord.FFmpegPCMAudio(
                         track.stream_url,
                         executable=self.bot.settings.ffmpeg_path,
-                        before_options=(
-                            "-reconnect 1 -reconnect_streamed 1 "
-                            "-reconnect_delay_max 5"
-                        ),
+                        before_options=before_options,
                         options="-vn",
                     ),
                     volume=0.5,

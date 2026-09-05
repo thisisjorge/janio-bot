@@ -29,6 +29,7 @@ class Track:
     duration_seconds: int | None
     requested_by: int
     resolved_at: float
+    http_headers: dict[str, str] | None = None
 
 
 class MusicExtractor:
@@ -97,6 +98,7 @@ class MusicExtractor:
                 duration_seconds=duration,
                 requested_by=requested_by,
                 resolved_at=time.monotonic(),
+                http_headers=info.get("http_headers"),
             )
         except ExternalServiceError:
             raise
