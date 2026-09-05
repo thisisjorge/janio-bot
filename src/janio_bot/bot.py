@@ -14,6 +14,7 @@ from janio_bot.services.ddragon import DataDragonClient
 from janio_bot.services.metabot import MetaBotClient
 from janio_bot.services.music import MusicExtractor
 from janio_bot.services.riot import RiotClient
+from janio_bot.ui import make_error_embed
 
 LOGGER = logging.getLogger(__name__)
 
@@ -34,10 +35,11 @@ MODE_EXTENSION = {
 async def send_interaction_error(
     interaction: discord.Interaction, message: str
 ) -> None:
+    embed = make_error_embed(message)
     if interaction.response.is_done():
-        await interaction.followup.send(message, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
     else:
-        await interaction.response.send_message(message, ephemeral=True)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 class JanioCommandTree(app_commands.CommandTree["JanioBot"]):
@@ -46,17 +48,17 @@ class JanioCommandTree(app_commands.CommandTree["JanioBot"]):
     ) -> None:
         original = error.original if isinstance(error, app_commands.CommandInvokeError) else error
         if isinstance(original, JanioError):
-            await send_interaction_error(interaction, f"❌ {original}")
+            await send_interaction_error(interaction, str(original))
             return
         if isinstance(original, app_commands.MissingPermissions):
             await send_interaction_error(
-                interaction, "❌ Você não tem permissão para usar este comando."
+                interaction, "Você não tem permissão para usar este comando."
             )
             return
         if isinstance(original, app_commands.BotMissingPermissions):
             missing = ", ".join(original.missing_permissions)
             await send_interaction_error(
-                interaction, f"❌ O bot não tem as permissões necessárias: {missing}."
+                interaction, f"O bot não tem as permissões necessárias: {missing}."
             )
             return
         LOGGER.exception(
@@ -65,7 +67,7 @@ class JanioCommandTree(app_commands.CommandTree["JanioBot"]):
             exc_info=original,
         )
         await send_interaction_error(
-            interaction, "❌ Ocorreu um erro inesperado. Tente novamente em instantes."
+            interaction, "Ocorreu um erro inesperado. Tente novamente em instantes."
         )
 
 
@@ -140,17 +142,17 @@ class JanioBot(commands.Bot):
 
         original = error.original if isinstance(error, commands.CommandInvokeError) else error
         if isinstance(original, JanioError):
-            await context.send(f"❌ {original}")
+            await context.send(embed=make_error_embed(str(original)))
             return
         if isinstance(original, commands.MissingPermissions):
-            await context.send("❌ Você não tem permissão para usar este comando.")
+            await context.send(embed=make_error_embed("Você não tem permissão para usar este comando."))
             return
         if isinstance(original, commands.BotMissingPermissions):
             missing = ", ".join(original.missing_permissions)
-            await context.send(f"❌ O bot não tem as permissões necessárias: {missing}.")
+            await context.send(embed=make_error_embed(f"O bot não tem as permissões necessárias: {missing}."))
             return
         if isinstance(original, commands.NoPrivateMessage):
-            await context.send("❌ Este comando precisa ser usado dentro de um servidor.")
+            await context.send(embed=make_error_embed("Este comando precisa ser usado dentro de um servidor."))
             return
         if isinstance(
             original,
@@ -163,10 +165,10 @@ class JanioBot(commands.Bot):
                 if context.command is not None
                 else f"{context.clean_prefix}ajuda"
             )
-            await context.send(f"❌ {detail}\nUso: `{usage.strip()}`")
+            await context.send(embed=make_error_embed(f"{detail}\nUso: `{usage.strip()}`"))
             return
         if isinstance(original, commands.CheckFailure):
-            await context.send("❌ Você não pode usar este comando neste contexto.")
+            await context.send(embed=make_error_embed("Você não pode usar este comando neste contexto."))
             return
 
         LOGGER.exception(
@@ -174,7 +176,7 @@ class JanioBot(commands.Bot):
             context.command.qualified_name if context.command else "?",
             exc_info=original,
         )
-        await context.send("❌ Ocorreu um erro inesperado. Tente novamente em instantes.")
+        await context.send(embed=make_error_embed("Ocorreu um erro inesperado. Tente novamente em instantes."))
 
     async def close(self) -> None:
         await self.web_client.aclose()

@@ -14,6 +14,7 @@ from janio_bot.cogs.league import LeagueCog
 from janio_bot.cogs.music import MusicCog
 from janio_bot.cogs.points import PointsCog
 from janio_bot.config import RuntimeMode
+from janio_bot.ui import make_embed, Colors
 
 LOGGER = logging.getLogger(__name__)
 
@@ -125,16 +126,15 @@ def _as_interaction(context: commands.Context[JanioBot]) -> discord.Interaction:
 
 
 def _command_help(mode: RuntimeMode) -> discord.Embed:
-    embed = discord.Embed(
+    embed = make_embed(
         title="📖 Comandos do Janio Bot",
         description=(
             "Use `j!` no lugar de `/`. Textos com espaço podem ser colocados entre aspas.\n"
             "Os comandos com `/` continuam funcionando normalmente."
         ),
-        color=discord.Color.blurple(),
     )
     embed.add_field(
-        name="Geral e pontos",
+        name="🛠️ Geral e pontos",
         value=(
             "`j!janio` · `j!ping` · `j!ajuda`\n"
             "`j!pontos saldo [@membro]` · `j!pontos diario` · `j!pontos ranking`"
@@ -143,7 +143,7 @@ def _command_help(mode: RuntimeMode) -> discord.Embed:
     )
     if mode is RuntimeMode.COMMUNITY:
         embed.add_field(
-            name="Previsões",
+            name="🎯 Previsões",
             value=(
                 "`j!aposta abertas` · `j!aposta ver <id>`\n"
                 "`j!aposta apostar <id> <A|B> <valor>`"
@@ -152,7 +152,7 @@ def _command_help(mode: RuntimeMode) -> discord.Embed:
         )
     else:
         embed.add_field(
-            name="League of Legends",
+            name="⚔️ League of Legends",
             value=(
                 "`j!lol build <campeão>` · `j!lol runas <campeão>`\n"
                 "`j!lol jogador <nome> <tag> [região]`"
@@ -160,7 +160,7 @@ def _command_help(mode: RuntimeMode) -> discord.Embed:
             inline=False,
         )
     embed.add_field(
-        name="Música e aviso",
+        name="🎵 Música e aviso",
         value=(
             "`j!musica tocar <busca>` · `j!musica fila` · `j!musica pular`\n"
             "`j!aviso status`"
@@ -185,10 +185,10 @@ def _moderation_help(mode: RuntimeMode) -> discord.Embed:
                 "`j!aposta cancelar <id>`",
             ]
         )
-    return discord.Embed(
+    return make_embed(
         title="🛡️ Comandos de moderação",
         description="\n".join(lines),
-        color=discord.Color.orange(),
+        color=Colors.WARNING,
     )
 
 

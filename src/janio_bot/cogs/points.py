@@ -6,6 +6,7 @@ from discord.ext import commands
 
 from janio_bot.bot import JanioBot
 from janio_bot.errors import DailyAlreadyClaimed
+from janio_bot.ui import make_embed, make_success_embed, make_error_embed, Colors
 
 
 def _format_duration(seconds: int) -> str:
@@ -33,7 +34,11 @@ class PointsCog(
         target = membro or interaction.user
         balance = await self.bot.database.get_balance(interaction.guild_id, target.id)
         await interaction.response.send_message(
-            f"🪙 **{target.display_name}** tem **{balance:,} pontos**.".replace(",", ".")
+            embed=make_embed(
+                title="🪙 Saldo de Pontos",
+                description=f"**{target.display_name}** tem **{balance:,} pontos**.".replace(",", "."),
+                color=Colors.WARNING
+            )
         )
 
     @app_commands.command(
@@ -48,15 +53,17 @@ class PointsCog(
             )
         except DailyAlreadyClaimed as exc:
             await interaction.response.send_message(
-                f"⏳ Volte em **{_format_duration(exc.retry_after_seconds)}**.",
+                embed=make_error_embed(f"⏳ Volte em **{_format_duration(exc.retry_after_seconds)}**."),
                 ephemeral=True,
             )
             return
         await interaction.response.send_message(
-            (
-                f"🎁 Você recebeu **{self.bot.settings.daily_points} pontos**. "
-                f"Saldo: **{new_balance:,}**."
-            ).replace(",", ".")
+            embed=make_success_embed(
+                (
+                    f"🎁 Você recebeu **{self.bot.settings.daily_points} pontos**.\n"
+                    f"Saldo atual: **{new_balance:,}**."
+                ).replace(",", ".")
+            )
         )
 
     @app_commands.command(name="ranking", description="Mostra os maiores saldos do servidor.")
@@ -66,7 +73,7 @@ class PointsCog(
         entries = await self.bot.database.leaderboard(interaction.guild_id)
         if not entries:
             await interaction.response.send_message(
-                "Ainda não há ninguém no ranking.", ephemeral=True
+                embed=make_error_embed("Ainda não há ninguém no ranking."), ephemeral=True
             )
             return
         guild = interaction.guild
@@ -81,10 +88,10 @@ class PointsCog(
                 f"{prefix} **{discord.utils.escape_markdown(name)}** — "
                 f"{entry.balance:,} pontos".replace(",", ".")
             )
-        embed = discord.Embed(
+        embed = make_embed(
             title="🏆 Ranking de pontos",
             description="\n".join(lines),
-            color=discord.Color.gold(),
+            color=Colors.WARNING,
         )
         await interaction.response.send_message(embed=embed)
 
@@ -111,10 +118,12 @@ class PointsCog(
             actor_id=interaction.user.id,
         )
         await interaction.response.send_message(
-            (
-                f"✅ **{valor:,} pontos** adicionados a **{membro.display_name}**. "
-                f"Novo saldo: **{new_balance:,}**."
-            ).replace(",", ".")
+            embed=make_success_embed(
+                (
+                    f"**{valor:,} pontos** adicionados a **{membro.display_name}**.\n"
+                    f"Novo saldo: **{new_balance:,}**."
+                ).replace(",", ".")
+            )
         )
 
 
