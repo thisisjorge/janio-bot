@@ -141,11 +141,17 @@ class JanioBot(commands.Bot):
             await context.send(embed=make_error_embed(str(original)))
             return
         if isinstance(original, commands.MissingPermissions):
-            await context.send(embed=make_error_embed("Você não tem permissão para usar este comando."))
+            try:
+                await context.send(embed=make_error_embed("Você não tem permissão para usar este comando."))
+            except discord.Forbidden:
+                await context.send("❌ Você não tem permissão para usar este comando.")
             return
         if isinstance(original, commands.BotMissingPermissions):
             missing = ", ".join(original.missing_permissions)
-            await context.send(embed=make_error_embed(f"O bot não tem as permissões necessárias: {missing}."))
+            try:
+                await context.send(embed=make_error_embed(f"O bot não tem as permissões necessárias: {missing}."))
+            except discord.Forbidden:
+                await context.send(f"❌ O bot não tem as permissões necessárias: {missing}.")
             return
         if isinstance(original, commands.NoPrivateMessage):
             await context.send(embed=make_error_embed("Este comando precisa ser usado dentro de um servidor."))
@@ -172,7 +178,13 @@ class JanioBot(commands.Bot):
             context.command.qualified_name if context.command else "?",
             exc_info=original,
         )
-        await context.send(embed=make_error_embed("Ocorreu um erro inesperado. Tente novamente em instantes."))
+        try:
+            await context.send(embed=make_error_embed("Ocorreu um erro inesperado. Tente novamente em instantes."))
+        except discord.Forbidden:
+            try:
+                await context.send("❌ Ocorreu um erro inesperado e eu não tenho permissão de enviar 'Embeds' (Inserir Links) neste canal para mostrar os detalhes.")
+            except discord.Forbidden:
+                pass
 
     async def close(self) -> None:
         await self.web_client.aclose()

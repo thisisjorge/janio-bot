@@ -5,6 +5,7 @@ import logging
 from typing import Literal, TypeVar, cast
 
 import discord
+from discord import app_commands
 from discord.ext import commands
 
 from janio_bot.bot import JanioBot
@@ -241,6 +242,11 @@ class PrefixCommandsCog(commands.Cog):
             else _command_help(self.bot.settings.mode)
         )
         await context.send(embed=embed)
+
+    @app_commands.command(name="ajuda", description="Mostra a central de comandos do bot.")
+    async def slash_help(self, interaction: discord.Interaction) -> None:
+        embed = _command_help(self.bot.settings.mode)
+        await interaction.response.send_message(embed=embed)
 
     @commands.command(name="janio")
     async def janio(self, context: commands.Context[JanioBot]) -> None:
