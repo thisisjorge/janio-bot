@@ -153,26 +153,24 @@ def _command_help(mode: RuntimeMode) -> discord.Embed:
         ),
         inline=False,
     )
-    if mode is RuntimeMode.COMMUNITY:
-        embed.add_field(
-            name="🎯 Previsões e Apostas",
-            value=(
-                "**`j!aposta abertas`** — Veja todos os mercados abertos para apostar.\n"
-                "**`j!aposta ver <id>`** — Mostra o placar e detalhes de uma aposta.\n"
-                "**`j!aposta apostar <id> <A|B> <valor>`** — Aposte no lado vencedor."
-            ),
-            inline=False,
-        )
-    else:
-        embed.add_field(
-            name="⚔️ League of Legends",
-            value=(
-                "**`j!lol build <campeão>`** — Sugere os melhores itens do meta atual.\n"
-                "**`j!lol runas <campeão>`** — Traz as runas mais fortes para o campeão.\n"
-                "**`j!lol jogador <nome> <tag> [região]`** — Busca o histórico do jogador."
-            ),
-            inline=False,
-        )
+    embed.add_field(
+        name="🎯 Previsões e Apostas",
+        value=(
+            "**`j!aposta abertas`** — Veja todos os mercados abertos para apostar.\n"
+            "**`j!aposta ver <id>`** — Mostra o placar e detalhes de uma aposta.\n"
+            "**`j!aposta apostar <id> <A|B> <valor>`** — Aposte no lado vencedor."
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name="⚔️ League of Legends",
+        value=(
+            "**`j!lol build <campeão>`** — Sugere os melhores itens do meta atual.\n"
+            "**`j!lol runas <campeão>`** — Traz as runas mais fortes para o campeão.\n"
+            "**`j!lol jogador <nome> <tag> [região]`** — Busca o histórico do jogador."
+        ),
+        inline=False,
+    )
     embed.add_field(
         name="🎵 Música e Entretenimento",
         value=(
@@ -196,21 +194,16 @@ def _moderation_help(mode: RuntimeMode) -> discord.Embed:
         "**`j!aviso configurar #canal [segundos] [mensagem]`**",
         "↳ Configura uma mensagem automática que se repete no canal escolhido.\n",
         "**`j!aviso ativar`** · **`j!aviso desativar`** · **`j!aviso testar`**",
-        "↳ Controles de status para ligar/desligar o sistema de avisos."
+        "↳ Controles de status para ligar/desligar o sistema de avisos.\n",
+        "**`j!aposta criar \"título\" \"opção A\" \"opção B\" [minutos]`**",
+        "↳ Cria um mercado de apostas. Textos com espaço devem estar entre aspas `\"\"`.\n",
+        "**`j!aposta fechar <id>`**",
+        "↳ Bloqueia novas apostas (os membros aguardam o resultado).\n",
+        "**`j!aposta resolver <id> <A|B>`**",
+        "↳ Encerra o evento e distribui todo o pote para quem apostou certo.\n",
+        "**`j!aposta cancelar <id>`**",
+        "↳ Cancela o evento e devolve 100% dos pontos aos participantes."
     ]
-    if mode is RuntimeMode.COMMUNITY:
-        lines.extend(
-            [
-                "\n**`j!aposta criar \"título\" \"opção A\" \"opção B\" [minutos]`**",
-                "↳ Cria um mercado de apostas. Textos com espaço devem estar entre aspas `\"\"`.\n",
-                "**`j!aposta fechar <id>`**",
-                "↳ Bloqueia novas apostas (os membros aguardam o resultado).\n",
-                "**`j!aposta resolver <id> <A|B>`**",
-                "↳ Encerra o evento e distribui todo o pote para quem apostou certo.\n",
-                "**`j!aposta cancelar <id>`**",
-                "↳ Cancela o evento e devolve 100% dos pontos aos participantes."
-            ]
-        )
     return make_embed(
         title="🛡️ Painel de Moderação",
         description="\n".join(lines),
@@ -584,7 +577,5 @@ class PrefixLeagueCog(commands.Cog):
 
 async def setup(bot: JanioBot) -> None:
     await bot.add_cog(PrefixCommandsCog(bot))
-    if bot.settings.mode is RuntimeMode.COMMUNITY:
-        await bot.add_cog(PrefixBettingCog(bot))
-    else:
-        await bot.add_cog(PrefixLeagueCog(bot))
+    await bot.add_cog(PrefixBettingCog(bot))
+    await bot.add_cog(PrefixLeagueCog(bot))

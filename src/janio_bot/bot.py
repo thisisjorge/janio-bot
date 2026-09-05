@@ -24,12 +24,9 @@ BASE_EXTENSIONS = (
     "janio_bot.cogs.announcements",
     "janio_bot.cogs.music",
     "janio_bot.cogs.prefix",
+    "janio_bot.cogs.betting",
+    "janio_bot.cogs.league",
 )
-
-MODE_EXTENSION = {
-    RuntimeMode.COMMUNITY: "janio_bot.cogs.betting",
-    RuntimeMode.LEAGUE: "janio_bot.cogs.league",
-}
 
 
 async def send_interaction_error(
@@ -107,10 +104,9 @@ class JanioBot(commands.Bot):
 
     async def setup_hook(self) -> None:
         await self.database.initialize()
-        extensions = (*BASE_EXTENSIONS, MODE_EXTENSION[self.settings.mode])
-        for extension in extensions:
+        for extension in BASE_EXTENSIONS:
             await self.load_extension(extension)
-        LOGGER.info("Janio Bot iniciado no modo %s.", self.settings.mode.value)
+        LOGGER.info("Janio Bot iniciado com todos os módulos (Unlocked).")
 
         if not self.settings.sync_commands:
             LOGGER.info("Sincronização de slash commands desativada.")
