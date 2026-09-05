@@ -220,8 +220,8 @@ class PrefixCommandsCog(commands.Cog):
 
     def _cog(self, cls: type[CogT]) -> CogT:
         for cog in self.bot.cogs.values():
-            if isinstance(cog, cls):
-                return cog
+            if cog.__class__.__name__ == cls.__name__:
+                return cog  # type: ignore
         raise commands.CommandError(f"O módulo {cls.__name__} não está disponível.")
 
     @commands.command(name="ajuda", aliases=("help", "comandos"))
@@ -422,8 +422,8 @@ class PrefixBettingCog(commands.Cog):
 
     def _betting(self) -> BettingCog:
         for cog in self.bot.cogs.values():
-            if isinstance(cog, BettingCog):
-                return cog
+            if cog.__class__.__name__ == "BettingCog":
+                return cog  # type: ignore
         raise commands.CommandError("As previsões não estão disponíveis agora.")
 
     @commands.group(name="aposta", invoke_without_command=True)
@@ -529,8 +529,8 @@ class PrefixLeagueCog(commands.Cog):
 
     def _league(self) -> LeagueCog:
         for cog in self.bot.cogs.values():
-            if isinstance(cog, LeagueCog):
-                return cog
+            if cog.__class__.__name__ == "LeagueCog":
+                return cog  # type: ignore
         raise commands.CommandError("Os comandos de League of Legends não estão disponíveis agora.")
 
     @commands.group(name="lol", invoke_without_command=True)

@@ -29,6 +29,14 @@ def main() -> None:
 async def _run(settings: Settings) -> None:
     # Import after runtime discovery so yt-dlp sees a packaged Deno binary when needed.
     from janio_bot.bot import JanioBot
+    import discord
+
+    if not discord.opus.is_loaded():
+        try:
+            discord.opus.load_opus("libopus.so.0")
+            LOGGER.info("libopus.so.0 carregada com sucesso.")
+        except Exception as e:
+            LOGGER.warning("Falha ao carregar libopus manualmente: %s", e)
 
     async with JanioBot(settings) as bot:
         await bot.start(settings.discord_token)
