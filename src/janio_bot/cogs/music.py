@@ -13,7 +13,8 @@ from discord import app_commands
 from discord.ext import commands
 
 from janio_bot.bot import JanioBot
-from janio_bot.errors import ExternalServiceError
+from janio_bot.errors import ExternalServiceError, UsageError
+from janio_bot.services.lastfm import lastfm_service
 from janio_bot.services.music import Track
 from janio_bot.ui import make_embed, make_error_embed, make_success_embed, Colors
 
@@ -363,9 +364,12 @@ class MusicCog(
                 if source is not None:
                     source.cleanup()
                 continue
-            embed = make_embed(
-                title="▶️ Tocando agora",
-                description=f"**{discord.utils.escape_markdown(track.title)}**\n⏱️ Duração: `{_duration(track.duration_seconds)}`"
+
+            asyncio.create_task(lastfm_service.update_now_playing(track.title))
+
+            embed = discord.Embed(
+                title="Tocando Agora",
+                description=f"[{track.title}]({track.webpage_url})",
             )
             if track.thumbnail_url:
                 embed.set_thumbnail(url=track.thumbnail_url)
@@ -382,6 +386,14 @@ class MusicCog(
     async def _finish_track(
         self, guild_id: int, track: Track, error: Exception | None
     ) -> None:
+        if error is None:
+            # Pylast precisa do timestamp do momento em que a música começou a tocar. 
+            # Como a track não tem timestamp de início nativo, usamos o timestamp atual - duração.
+            # Se não tiver duração, usamos o atual - 3 minutos.
+            duration = track.duration_seconds or 180
+            start_ts = int(time.time()) - duration
+            asyncio.create_task(lastfm_service.scrobble(track.title, start_ts))
+
         if error is not None:
             LOGGER.warning("Erro do player no servidor %d: %s", guild_id, error)
         state = self._state(guild_id)
