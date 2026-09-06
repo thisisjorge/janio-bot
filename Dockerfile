@@ -6,13 +6,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
 RUN apt-get update \
-    && apt-get install --no-install-recommends -y ffmpeg \
+    && apt-get install --no-install-recommends -y ffmpeg libopus0 \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY --from=deno /deno /usr/local/bin/deno
-COPY pyproject.toml README.md LICENSE ./
+COPY pyproject.toml README.md LICENSE cookies.txt* ./
 COPY src ./src
 
 RUN pip install --no-cache-dir .

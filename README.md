@@ -69,10 +69,11 @@ O container Docker já inclui FFmpeg e Deno.
 6. Em **Installation**, habilite os escopos `bot` e `applications.commands`.
 7. Permissões recomendadas: View Channels, Send Messages, Embed Links, Read
    Message History, Connect e Speak.
-8. Instale a aplicação no servidor.
+8. Em **Bot > Privileged Gateway Intents**, habilite **Message Content Intent**.
+9. Instale a aplicação no servidor.
 
-O bot usa slash commands e não precisa do intent privilegiado
-**Message Content**.
+O **Message Content Intent** é necessário para os comandos de texto com `!`.
+Os slash commands continuam disponíveis mesmo que esse intent seja desabilitado.
 
 ### 2. Preparar o ambiente
 
@@ -86,9 +87,10 @@ pip install -e ".[dev]"
 Copy-Item .env.example .env
 ```
 
-Edite `.env`. Para os comandos aparecerem imediatamente durante o
-desenvolvimento, ative o modo desenvolvedor do Discord, copie o ID do servidor
-e preencha `TEST_GUILD_ID`.
+Edite `.env`. Os comandos são sempre registrados globalmente. Para que as
+alterações também apareçam imediatamente em um servidor de desenvolvimento,
+ative o modo desenvolvedor do Discord, copie o ID do servidor e preencha
+`TEST_GUILD_ID`.
 
 ### 3. Iniciar
 
@@ -121,14 +123,25 @@ ficam em `logs/janio-bot.log`. Para remover:
 
 ## Comandos
 
-| Grupo | Comandos |
-|---|---|
-| Geral | `/janio`, `/ping` |
-| Pontos | `/pontos saldo`, `/pontos diario`, `/pontos ranking`, `/pontos dar` |
-| Previsões | `/aposta criar`, `/aposta apostar`, `/aposta ver`, `/aposta abertas`, `/aposta fechar`, `/aposta resolver`, `/aposta cancelar` |
-| League | `/lol build`, `/lol runas`, `/lol jogador` |
-| Aviso | `/aviso configurar`, `/aviso ativar`, `/aviso desativar`, `/aviso status`, `/aviso testar` |
-| Música | `/musica tocar`, `/musica fila`, `/musica pausar`, `/musica continuar`, `/musica pular`, `/musica parar`, `/musica sair` |
+Cada comando pode ser usado como slash command ou como comando de texto com `!`:
+
+| Grupo | Slash | Texto |
+|---|---|---|
+| Geral | `/janio`, `/ping` | `!janio`, `!ping`, `!ajuda` |
+| Pontos | `/pontos saldo`, `/pontos diario`, `/pontos ranking`, `/pontos dar` | `!pontos saldo`, `!pontos diario`, `!pontos ranking`, `!pontos dar` |
+| Previsões | `/aposta criar`, `/aposta apostar`, `/aposta ver`, `/aposta abertas`, `/aposta fechar`, `/aposta resolver`, `/aposta cancelar` | os mesmos nomes após `!aposta` |
+| League | `/lol build`, `/lol runas`, `/lol jogador` | `!lol build`, `!lol runas`, `!lol jogador` |
+| Aviso | `/aviso configurar`, `/aviso ativar`, `/aviso desativar`, `/aviso status`, `/aviso testar` | os mesmos nomes após `!aviso` |
+| Música | `/musica tocar`, `/musica fila`, `/musica pausar`, `/musica continuar`, `/musica pular`, `/musica parar`, `/musica sair` | os mesmos nomes após `!musica` |
+
+Use `!ajuda` para ver os comandos comuns e `!ajuda moderacao` para ver os
+comandos que exigem **Manage Server**. Quando um argumento tem espaços, coloque-o
+entre aspas. Exemplo:
+
+```text
+!aposta criar "A equipe azul vence?" "Sim" "Não" 10
+!musica tocar minha música favorita
+```
 
 O grupo `/aposta` existe somente no modo `community`; o grupo `/lol`, somente no
 modo `league`.
@@ -174,7 +187,7 @@ O bot bloqueia menções como `@everyone` nessa mensagem.
 |---|---:|---|
 | `DISCORD_TOKEN` | sim | — |
 | `JANIO_MODE` | não | `community` |
-| `TEST_GUILD_ID` | não | sync global |
+| `TEST_GUILD_ID` | não | vazio; sync somente global |
 | `RIOT_API_KEY` | só para `/lol jogador` | — |
 | `DATABASE_PATH` | não | `data/janio.sqlite3` |
 | `DEFAULT_POINTS` | não | `1000` |

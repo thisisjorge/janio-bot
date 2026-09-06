@@ -6,6 +6,7 @@ from discord.ext import commands
 
 from janio_bot.bot import JanioBot
 from janio_bot.config import RuntimeMode
+from janio_bot.ui import make_embed, Colors
 
 
 class GeneralCog(commands.Cog):
@@ -14,21 +15,22 @@ class GeneralCog(commands.Cog):
 
     @app_commands.command(name="ping", description="Mostra a latência do Janio Bot.")
     async def ping(self, interaction: discord.Interaction) -> None:
+        latency = round(self.bot.latency * 1000)
         await interaction.response.send_message(
-            f"🏓 Pong! `{round(self.bot.latency * 1000)} ms`", ephemeral=True
+            embed=make_embed(title="🏓 Pong!", description=f"Latência da API: `{latency} ms`", color=Colors.INFO),
+            ephemeral=True
         )
 
     @app_commands.command(name="janio", description="Mostra os recursos e comandos do bot.")
     async def janio(self, interaction: discord.Interaction) -> None:
         community_mode = self.bot.settings.mode is RuntimeMode.COMMUNITY
-        embed = discord.Embed(
-            title="Janio Bot",
+        embed = make_embed(
+            title="🤖 Janio Bot",
             description=(
                 "Pontos e previsões da comunidade, música e aviso recorrente."
                 if community_mode
                 else "Dados de League of Legends, música e aviso recorrente."
             ),
-            color=discord.Color.blurple(),
         )
         if community_mode:
             embed.add_field(

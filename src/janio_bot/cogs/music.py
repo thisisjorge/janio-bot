@@ -13,8 +13,10 @@ from discord import app_commands
 from discord.ext import commands
 
 from janio_bot.bot import JanioBot
-from janio_bot.errors import ExternalServiceError
+from janio_bot.errors import ExternalServiceError, UsageError
+from janio_bot.services.lastfm import lastfm_service
 from janio_bot.services.music import Track
+from janio_bot.ui import make_embed, make_error_embed, make_success_embed, Colors
 
 LOGGER = logging.getLogger(__name__)
 
@@ -176,13 +178,14 @@ class MusicCog(
             if not committed:
                 await self._release_queue_slot(state, reservation_id)
         await self._start_next(interaction.guild_id, voice)
-        await interaction.edit_original_response(
-            content=(
-                f"🎵 **{discord.utils.escape_markdown(track.title)}** "
-                f"(`{_duration(track.duration_seconds)}`) entrou na fila "
-                f"na posição **{position}**."
-            )
+        embed = make_embed(
+            title="🎵 Música adicionada à fila",
+            description=f"**{discord.utils.escape_markdown(track.title)}**\n⏱️ Duração: `{_duration(track.duration_seconds)}`\n🔢 Posição: `{position}`",
+            color=Colors.SUCCESS
         )
+        if track.thumbnail_url:
+            embed.set_thumbnail(url=track.thumbnail_url)
+        await interaction.edit_original_response(content=None, embed=embed)
 
     @app_commands.command(name="fila", description="Mostra a fila de reprodução.")
     @app_commands.guild_only()
@@ -200,13 +203,12 @@ class MusicCog(
                 f"(`{_duration(track.duration_seconds)}`)"
             )
         if not lines:
-            await interaction.response.send_message("A fila está vazia.", ephemeral=True)
+            await interaction.response.send_message(embed=make_error_embed("A fila está vazia."), ephemeral=True)
             return
         await interaction.response.send_message(
-            embed=discord.Embed(
+            embed=make_embed(
                 title="🎶 Fila de música",
-                description="\n".join(lines),
-                color=discord.Color.purple(),
+                description="\n".join(lines)
             )
         )
 
@@ -217,7 +219,7 @@ class MusicCog(
         if not voice.is_playing():
             raise ExternalServiceError("Não há uma faixa tocando.")
         voice.pause()
-        await interaction.response.send_message("⏸️ Música pausada.")
+        await interaction.response.send_message(embed=make_success_embed("Música pausada."))
 
     @app_commands.command(name="continuar", description="Continua a faixa pausada.")
     @app_commands.guild_only()
@@ -226,7 +228,7 @@ class MusicCog(
         if not voice.is_paused():
             raise ExternalServiceError("A música não está pausada.")
         voice.resume()
-        await interaction.response.send_message("▶️ Reprodução retomada.")
+        await interaction.response.send_message(embed=make_success_embed("Reprodução retomada."))
 
     @app_commands.command(name="pular", description="Pula a faixa atual.")
     @app_commands.guild_only()
@@ -235,7 +237,7 @@ class MusicCog(
         if not voice.is_playing() and not voice.is_paused():
             raise ExternalServiceError("Não há uma faixa para pular.")
         voice.stop()
-        await interaction.response.send_message("⏭️ Faixa pulada.")
+        await interaction.response.send_message(embed=make_success_embed("Faixa pulada."))
 
     @app_commands.command(name="parar", description="Limpa a fila e para a reprodução.")
     @app_commands.guild_only()
@@ -246,7 +248,7 @@ class MusicCog(
             voice = await self._require_same_voice(interaction)
             await self._clear_state(state)
             voice.stop()
-        await interaction.response.send_message("⏹️ Reprodução e fila encerradas.")
+        await interaction.response.send_message(embed=make_success_embed("Reprodução e fila encerradas."))
 
     @app_commands.command(name="sair", description="Desconecta o bot do canal de voz.")
     @app_commands.guild_only()
@@ -257,7 +259,7 @@ class MusicCog(
             voice = await self._require_same_voice(interaction)
             await self._clear_state(state)
             await voice.disconnect(force=True)
-        await interaction.response.send_message("👋 Saí do canal de voz.")
+        await interaction.response.send_message(embed=make_success_embed("Saí do canal de voz."))
 
     @staticmethod
     async def _clear_state(state: GuildMusicState) -> None:
@@ -307,14 +309,17 @@ class MusicCog(
             stale = False
             try:
                 track = await self.bot.music_extractor.refresh(track)
+                before_options = "-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5"
+                if track.http_headers:
+                    headers_list = [f"{k}: {v}" for k, v in track.http_headers.items()]
+                    headers_str = "\\r\\n".join(headers_list) + "\\r\\n"
+                    before_options += f" -headers \"{headers_str}\""
+
                 source = discord.PCMVolumeTransformer(
                     discord.FFmpegPCMAudio(
                         track.stream_url,
                         executable=self.bot.settings.ffmpeg_path,
-                        before_options=(
-                            "-reconnect 1 -reconnect_streamed 1 "
-                            "-reconnect_delay_max 5"
-                        ),
+                        before_options=before_options,
                         options="-vn",
                     ),
                     volume=0.5,
@@ -351,7 +356,7 @@ class MusicCog(
                 LOGGER.exception("Falha ao iniciar uma faixa no servidor %d.", guild_id)
                 await self._notify(
                     state,
-                    "⚠️ Não consegui tocar uma faixa da fila; passei para a próxima.",
+                    embed=make_error_embed("Não consegui tocar uma faixa da fila; passei para a próxima.")
                 )
                 continue
 
@@ -359,13 +364,16 @@ class MusicCog(
                 if source is not None:
                     source.cleanup()
                 continue
-            await self._notify(
-                state,
-                (
-                    f"▶️ Tocando **{discord.utils.escape_markdown(track.title)}** "
-                    f"(`{_duration(track.duration_seconds)}`)"
-                ),
+
+            asyncio.create_task(lastfm_service.update_now_playing(track.title))
+
+            embed = discord.Embed(
+                title="Tocando Agora",
+                description=f"[{track.title}]({track.webpage_url})",
             )
+            if track.thumbnail_url:
+                embed.set_thumbnail(url=track.thumbnail_url)
+            await self._notify(state, embed=embed)
             return
 
     def _after_track(
@@ -378,6 +386,14 @@ class MusicCog(
     async def _finish_track(
         self, guild_id: int, track: Track, error: Exception | None
     ) -> None:
+        if error is None:
+            # Pylast precisa do timestamp do momento em que a música começou a tocar. 
+            # Como a track não tem timestamp de início nativo, usamos o timestamp atual - duração.
+            # Se não tiver duração, usamos o atual - 3 minutos.
+            duration = track.duration_seconds or 180
+            start_ts = int(time.time()) - duration
+            asyncio.create_task(lastfm_service.scrobble(track.title, start_ts))
+
         if error is not None:
             LOGGER.warning("Erro do player no servidor %d: %s", guild_id, error)
         state = self._state(guild_id)
@@ -404,17 +420,17 @@ class MusicCog(
                     if state.queue or state.current is not None or state.starting:
                         return
                 await guild.voice_client.disconnect(force=True)
-            await self._notify(state, "👋 Saí do canal de voz após 5 minutos sem música.")
+            await self._notify(state, embed=make_embed(title="👋 Ocioso", description="Saí do canal de voz após 5 minutos sem música."))
         except asyncio.CancelledError:
             return
 
-    async def _notify(self, state: GuildMusicState, message: str) -> None:
+    async def _notify(self, state: GuildMusicState, message: str | None = None, embed: discord.Embed | None = None) -> None:
         if state.text_channel_id is None:
             return
         channel = self.bot.get_channel(state.text_channel_id)
         if isinstance(channel, (discord.TextChannel, discord.Thread)):
             try:
-                await channel.send(message)
+                await channel.send(content=message, embed=embed)
             except discord.HTTPException:
                 LOGGER.warning("Falha ao enviar atualização da fila de música.")
 
