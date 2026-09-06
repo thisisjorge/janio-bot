@@ -16,6 +16,8 @@ ALLOWED_MEDIA_HOSTS = {
     "m.youtube.com",
     "music.youtube.com",
     "youtu.be",
+    "soundcloud.com",
+    "m.soundcloud.com",
 }
 MAX_TRACK_SECONDS = 3 * 60 * 60
 MAX_CONCURRENT_EXTRACTIONS = 2
@@ -41,7 +43,7 @@ class MusicExtractor:
             raise ValueError("max_concurrent_extractions precisa ser maior que zero")
         self._extraction_slots = asyncio.Semaphore(max_concurrent_extractions)
 
-    def validate_query(self, query: str) -> str:
+    async def validate_query(self, query: str) -> str:
         query = query.strip()
         if not query:
             raise ExternalServiceError("Informe o nome ou link de uma música.")
@@ -50,15 +52,31 @@ class MusicExtractor:
             if parsed.scheme != "https":
                 raise ExternalServiceError("Somente links HTTPS do YouTube são aceitos.")
             hostname = (parsed.hostname or "").casefold()
+            
+            if "spotify.com" in hostname:
+                import aiohttp
+                import re
+                try:
+                    async with aiohttp.ClientSession(headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}) as session:
+                        async with session.get(query) as resp:
+                            html = await resp.text()
+                            match = re.search(r'<title>(.*?)</title>', html, re.IGNORECASE)
+                            if match:
+                                title = match.group(1).replace(" | Spotify", "").split(" - song and lyrics by ")[0]
+                                return f"ytsearch1:{title}"
+                except Exception:
+                    pass
+                raise ExternalServiceError("Não consegui ler esse link do Spotify. Tente digitar o nome da música e do artista.")
+
             if hostname not in ALLOWED_MEDIA_HOSTS:
                 raise ExternalServiceError(
-                    "Por segurança, o MVP aceita apenas links do YouTube."
+                    "Por segurança, o MVP aceita apenas links do YouTube, SoundCloud e Spotify."
                 )
             return query
         return f"ytsearch1:{query}"
 
     async def extract(self, query: str, requested_by: int) -> Track:
-        validated = self.validate_query(query)
+        validated = await self.validate_query(query)
         try:
             info = await self._extract_limited(validated)
             if entries := info.get("entries"):
@@ -85,11 +103,26 @@ class MusicExtractor:
                 )
             if duration > MAX_TRACK_SECONDS:
                 raise ExternalServiceError("A faixa pode ter no máximo 3 horas.")
-            stream_url = str(info["url"])
+            
+            stream_url = info.get("url")
+            if not stream_url and "formats" in info:
+                # Find best audio format manually
+                audio_formats = [f for f in info["formats"] if f.get("vcodec") == "none" and f.get("acodec") != "none"]
+                if audio_formats:
+                    # Sort by abr (audio bitrate) descending
+                    audio_formats.sort(key=lambda x: x.get("abr") or 0, reverse=True)
+                    stream_url = audio_formats[0].get("url")
+                else:
+                    # Fallback to any format with audio
+                    formats = [f for f in info["formats"] if f.get("acodec") != "none"]
+                    if formats:
+                        stream_url = formats[-1].get("url")
+
+            stream_url = str(stream_url or "")
             webpage_url = str(info.get("webpage_url") or info.get("original_url") or "")
             if not webpage_url:
                 raise ValueError("URL pública ausente")
-            self.validate_query(webpage_url)
+            await self.validate_query(webpage_url)
             if urlparse(stream_url).scheme != "https":
                 raise ExternalServiceError("A fonte de áudio precisa usar HTTPS.")
             return Track(
@@ -102,9 +135,12 @@ class MusicExtractor:
                 thumbnail_url=info.get("thumbnail"),
                 http_headers=info.get("http_headers"),
             )
-        except ExternalServiceError:
+        except ExternalServiceError as exc:
+            print("ExternalServiceError:", exc)
             raise
         except Exception as exc:
+            import traceback
+            traceback.print_exc()
             raise ExternalServiceError(
                 "Não consegui localizar ou abrir essa faixa."
             ) from exc
@@ -134,7 +170,6 @@ class MusicExtractor:
     @staticmethod
     def _extract_sync(query: str) -> dict[str, Any]:
         options = {
-            "format": "bestaudio/best",
             "quiet": True,
             "no_warnings": True,
             "noplaylist": True,
@@ -144,6 +179,9 @@ class MusicExtractor:
             "extractor_retries": 2,
             "source_address": "0.0.0.0",
         }
+        import os
+        if os.path.exists("cookies.txt"):
+            options["cookiefile"] = "cookies.txt"
         with yt_dlp.YoutubeDL(cast(Any, options)) as downloader:
             info = downloader.extract_info(query, download=False)
         if not isinstance(info, dict):

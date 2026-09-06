@@ -12,7 +12,7 @@ RUN apt-get update \
 WORKDIR /app
 
 COPY --from=deno /deno /usr/local/bin/deno
-COPY pyproject.toml README.md LICENSE ./
+COPY pyproject.toml README.md LICENSE cookies.txt* ./
 COPY src ./src
 
 RUN pip install --no-cache-dir .
