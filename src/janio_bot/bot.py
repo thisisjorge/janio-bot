@@ -26,6 +26,7 @@ BASE_EXTENSIONS = (
     "janio_bot.cogs.prefix",
     "janio_bot.cogs.betting",
     "janio_bot.cogs.league",
+    "janio_bot.cogs.lastfm",
 )
 
 

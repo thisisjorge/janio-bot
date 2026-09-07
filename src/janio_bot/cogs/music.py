@@ -13,7 +13,7 @@ from discord import app_commands
 from discord.ext import commands
 
 from janio_bot.bot import JanioBot
-from janio_bot.errors import ExternalServiceError, UsageError
+from janio_bot.errors import ExternalServiceError
 from janio_bot.services.lastfm import lastfm_service
 from janio_bot.services.music import Track
 from janio_bot.ui import make_embed, make_error_embed, make_success_embed, Colors
@@ -62,6 +62,19 @@ class MusicCog(
                 state.idle_task.cancel()
         for voice in list(self.bot.voice_clients):
             await voice.disconnect(force=True)
+
+    async def _get_voice_session_keys(self, guild_id: int) -> list[str]:
+        guild = self.bot.get_guild(guild_id)
+        if not guild or not guild.voice_client or getattr(guild.voice_client, "channel", None) is None:
+            return []
+        
+        session_keys = []
+        for member in guild.voice_client.channel.members:
+            if not member.bot:
+                session_key = await self.bot.database.get_lastfm_session(member.id)
+                if session_key:
+                    session_keys.append(session_key)
+        return session_keys
 
     def _state(self, guild_id: int) -> GuildMusicState:
         return self.states.setdefault(guild_id, GuildMusicState())
@@ -365,7 +378,8 @@ class MusicCog(
                     source.cleanup()
                 continue
 
-            asyncio.create_task(lastfm_service.update_now_playing(track.title))
+            session_keys = await self._get_voice_session_keys(guild_id)
+            asyncio.create_task(lastfm_service.update_now_playing(track.title, session_keys, getattr(track, "artist", None)))
 
             embed = discord.Embed(
                 title="Tocando Agora",
@@ -392,7 +406,8 @@ class MusicCog(
             # Se não tiver duração, usamos o atual - 3 minutos.
             duration = track.duration_seconds or 180
             start_ts = int(time.time()) - duration
-            asyncio.create_task(lastfm_service.scrobble(track.title, start_ts))
+            session_keys = await self._get_voice_session_keys(guild_id)
+            asyncio.create_task(lastfm_service.scrobble(track.title, start_ts, session_keys, getattr(track, "artist", None)))
 
         if error is not None:
             LOGGER.warning("Erro do player no servidor %d: %s", guild_id, error)

@@ -34,6 +34,7 @@ class Track:
     thumbnail_url: str | None = None
     http_headers: dict[str, str] | None = None
 
+    artist: str | None = None
 
 class MusicExtractor:
     def __init__(
@@ -55,25 +56,35 @@ class MusicExtractor:
             
             if "spotify.com" in hostname:
                 import aiohttp
-                import re
+                import json
                 try:
-                    async with aiohttp.ClientSession(headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"}) as session:
-                        async with session.get(query) as resp:
-                            html = await resp.text()
-                            match = re.search(r'<title>(.*?)</title>', html, re.IGNORECASE)
-                            if match:
-                                title = match.group(1).replace(" | Spotify", "").split(" - song and lyrics by ")[0]
-                                return f"ytsearch1:{title}"
+                    oembed_url = f"https://open.spotify.com/oembed?url={query}"
+                    async with aiohttp.ClientSession(headers={"User-Agent": "Mozilla/5.0"}) as session:
+                        async with session.get(oembed_url) as resp:
+                            if resp.status == 200:
+                                data = await resp.json()
+                                title = data.get("title")
+                                if title:
+                                    return f"scsearch:{title}"
+                            else:
+                                # Fallback: regex
+                                async with session.get(query) as resp2:
+                                    html = await resp2.text()
+                                    import re
+                                    match = re.search(r'<title>(.*?)</title>', html, re.IGNORECASE)
+                                    if match and match.group(1).strip() != "Spotify":
+                                        full_title = match.group(1).replace(" | Spotify", "")
+                                        return f"scsearch:{full_title}"
                 except Exception:
                     pass
-                raise ExternalServiceError("Não consegui ler esse link do Spotify. Tente digitar o nome da música e do artista.")
+                raise ExternalServiceError("O Spotify bloqueou a leitura desta música. Busque pelo nome da música em vez do link!")
 
             if hostname not in ALLOWED_MEDIA_HOSTS:
                 raise ExternalServiceError(
                     "Por segurança, o MVP aceita apenas links do YouTube, SoundCloud e Spotify."
                 )
             return query
-        return f"ytsearch1:{query}"
+        return f"scsearch:{query}"
 
     async def extract(self, query: str, requested_by: int) -> Track:
         validated = await self.validate_query(query)
@@ -134,6 +145,7 @@ class MusicExtractor:
                 resolved_at=time.monotonic(),
                 thumbnail_url=info.get("thumbnail"),
                 http_headers=info.get("http_headers"),
+                artist=str(info.get("artist") or info.get("uploader") or ""),
             )
         except ExternalServiceError as exc:
             print("ExternalServiceError:", exc)
@@ -173,11 +185,12 @@ class MusicExtractor:
             "quiet": True,
             "no_warnings": True,
             "noplaylist": True,
-            "default_search": "ytsearch",
+            "default_search": "scsearch",
             "socket_timeout": 15,
             "retries": 2,
             "extractor_retries": 2,
             "source_address": "0.0.0.0",
+            "extractor_args": {"youtube": {"player_client": ["ios", "web_creator"]}},
         }
         import os
         if os.path.exists("cookies.txt"):
