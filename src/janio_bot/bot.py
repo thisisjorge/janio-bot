@@ -12,8 +12,8 @@ from janio_bot.database import Database
 from janio_bot.errors import JanioError
 from janio_bot.services.ddragon import DataDragonClient
 from janio_bot.services.metabot import MetaBotClient
-from janio_bot.services.music import MusicExtractor
 from janio_bot.services.riot import RiotClient
+import wavelink
 from janio_bot.ui import make_error_embed
 
 LOGGER = logging.getLogger(__name__)
@@ -27,6 +27,7 @@ BASE_EXTENSIONS = (
     "janio_bot.cogs.betting",
     "janio_bot.cogs.league",
     "janio_bot.cogs.lastfm",
+    "janio_bot.cogs.vault",
 )
 
 
@@ -101,7 +102,6 @@ class JanioBot(commands.Bot):
         )
         self.metabot = MetaBotClient(self.web_client, endpoint=settings.metabot_url)
         self.riot = RiotClient(self.web_client, settings.riot_api_key)
-        self.music_extractor = MusicExtractor()
 
     async def setup_hook(self) -> None:
         await self.database.initialize()
@@ -128,6 +128,9 @@ class JanioBot(commands.Bot):
     async def on_ready(self) -> None:
         if self.user is not None:
             LOGGER.info("Janio Bot conectado como %s (%d).", self.user, self.user.id)
+            
+        nodes = [wavelink.Node(uri="http://127.0.0.1:2333", password="youshallnotpass")]
+        await wavelink.Pool.connect(nodes=nodes, client=self, cache_capacity=100)
 
     async def on_command_error(
         self,
