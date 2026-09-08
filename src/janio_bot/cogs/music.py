@@ -149,7 +149,7 @@ class MusicCog(
                 if local_path:
                     # Pesquisa como se fosse um arquivo local
                     try:
-                        tracks = await wavelink.Playable.search("file://" + local_path)
+                        tracks = await wavelink.Playable.search(local_path, source=None)
                         if tracks:
                             # Injeta os metadados reais para a Embed ficar bonita
                             tracks[0].title = title
