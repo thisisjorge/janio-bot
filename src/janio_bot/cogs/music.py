@@ -147,9 +147,9 @@ class MusicCog(
                 # 2. Tenta encontrar no cofre do Google Drive primeiro
                 local_path = await drive_vault_service.search_by_video_id(video_id)
                 if local_path:
-                    # Pesquisa como se fosse um arquivo local (exige local: true no application.yml)
+                    # Pesquisa como se fosse um arquivo local
                     try:
-                        tracks = await wavelink.Playable.search(local_path)
+                        tracks = await wavelink.Playable.search("file://" + local_path)
                         if tracks:
                             # Injeta os metadados reais para a Embed ficar bonita
                             tracks[0].title = title
