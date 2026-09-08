@@ -15,21 +15,26 @@ def is_admin():
     return app_commands.check(predicate)
 
 class VaultCog(
-    commands.GroupCog,
-    group_name="musicvault",
+    commands.Cog,
+    name="musicvault",
     description="Gerenciamento do cofre de músicas do Janiobot no Google Drive."
 ):
     def __init__(self, bot: JanioBot) -> None:
         self.bot = bot
 
-    @app_commands.command(name="list", description="Lista as músicas armazenadas no cofre do Drive.")
-    @is_admin()
-    async def list_vault(self, interaction: discord.Interaction) -> None:
-        await interaction.response.defer(thinking=True, ephemeral=True)
-        items = await drive_vault_service.list_vault()
+    @commands.group(name="musicvault", invoke_without_command=True)
+    @commands.has_permissions(administrator=True)
+    async def musicvault(self, ctx: commands.Context) -> None:
+        await ctx.send("Use `j!musicvault list`, `info`, `remove` ou `stats`.")
+
+    @musicvault.command(name="list", description="Lista as músicas armazenadas no cofre do Drive.")
+    @commands.has_permissions(administrator=True)
+    async def list_vault(self, ctx: commands.Context) -> None:
+        async with ctx.typing():
+            items = await drive_vault_service.list_vault()
         
         if not items:
-            await interaction.followup.send(embed=make_error_embed("O cofre está vazio."))
+            await ctx.send(embed=make_error_embed("O cofre está vazio."))
             return
             
         lines = []
@@ -45,17 +50,16 @@ class VaultCog(
             description="\n".join(lines) if len(lines) <= 20 else "\n".join(lines[:20]) + f"\n\n*...e mais {len(lines) - 20} arquivos.*",
             color=Colors.SUCCESS
         )
-        await interaction.followup.send(embed=embed)
+        await ctx.send(embed=embed)
 
-    @app_commands.command(name="info", description="Busca informações de uma música no cofre pelo link do YouTube.")
-    @app_commands.describe(url="URL do vídeo do YouTube")
-    @is_admin()
-    async def info_vault(self, interaction: discord.Interaction, url: str) -> None:
-        await interaction.response.defer(thinking=True, ephemeral=True)
-        match = re.search(r"(?:v=|youtu\.be/|shorts/)([\w-]{11})", url)
-        if not match:
-            await interaction.followup.send(embed=make_error_embed("URL do YouTube inválida."))
-            return
+    @musicvault.command(name="info", description="Busca informações de uma música no cofre pelo link do YouTube.")
+    @commands.has_permissions(administrator=True)
+    async def info_vault(self, ctx: commands.Context, url: str) -> None:
+        async with ctx.typing():
+            match = re.search(r"(?:v=|youtu\.be/|shorts/)([\w-]{11})", url)
+            if not match:
+                await ctx.send(embed=make_error_embed("URL do YouTube inválida."))
+                return
             
         video_id = match.group(1)
         items = await drive_vault_service.list_vault()
@@ -69,34 +73,33 @@ class VaultCog(
                     description=f"**Arquivo:** {name}\n**ID do YouTube:** `{video_id}`\n**Tamanho:** {size:.2f} MB",
                     color=Colors.SUCCESS
                 )
-                await interaction.followup.send(embed=embed)
+                await ctx.send(embed=embed)
                 return
                 
-        await interaction.followup.send(embed=make_error_embed("Esta música não está no cofre."))
+        await ctx.send(embed=make_error_embed("Esta música não está no cofre."))
 
-    @app_commands.command(name="remove", description="Remove uma música do cofre pelo link do YouTube.")
-    @app_commands.describe(url="URL do vídeo do YouTube")
-    @is_admin()
-    async def remove_vault(self, interaction: discord.Interaction, url: str) -> None:
-        await interaction.response.defer(thinking=True, ephemeral=True)
-        match = re.search(r"(?:v=|youtu\.be/|shorts/)([\w-]{11})", url)
-        if not match:
-            await interaction.followup.send(embed=make_error_embed("URL do YouTube inválida."))
-            return
+    @musicvault.command(name="remove", description="Remove uma música do cofre pelo link do YouTube.")
+    @commands.has_permissions(administrator=True)
+    async def remove_vault(self, ctx: commands.Context, url: str) -> None:
+        async with ctx.typing():
+            match = re.search(r"(?:v=|youtu\.be/|shorts/)([\w-]{11})", url)
+            if not match:
+                await ctx.send(embed=make_error_embed("URL do YouTube inválida."))
+                return
             
         video_id = match.group(1)
         success = await drive_vault_service.remove_by_video_id(video_id)
         
         if success:
-            await interaction.followup.send(embed=make_success_embed(f"A música do vídeo `{video_id}` foi removida do cofre com sucesso."))
+            await ctx.send(embed=make_success_embed(f"A música do vídeo `{video_id}` foi removida do cofre com sucesso."))
         else:
-            await interaction.followup.send(embed=make_error_embed("A música não foi encontrada no cofre ou ocorreu um erro ao deletar."))
+            await ctx.send(embed=make_error_embed("A música não foi encontrada no cofre ou ocorreu um erro ao deletar."))
 
-    @app_commands.command(name="stats", description="Mostra estatísticas do cofre.")
-    @is_admin()
-    async def stats_vault(self, interaction: discord.Interaction) -> None:
-        await interaction.response.defer(thinking=True, ephemeral=True)
-        items = await drive_vault_service.list_vault()
+    @musicvault.command(name="stats", description="Mostra estatísticas do cofre.")
+    @commands.has_permissions(administrator=True)
+    async def stats_vault(self, ctx: commands.Context) -> None:
+        async with ctx.typing():
+            items = await drive_vault_service.list_vault()
         
         total_size = sum(int(item.get('size', 0)) for item in items) / (1024 * 1024)
         count = len(items)
@@ -106,27 +109,31 @@ class VaultCog(
             description=f"**Total de Músicas:** {count}\n**Espaço Utilizado:** {total_size:.2f} MB",
             color=Colors.PRIMARY
         )
-        await interaction.followup.send(embed=embed)
+        await ctx.send(embed=embed)
 
 
 class AddMusicCog(commands.Cog):
     def __init__(self, bot: JanioBot) -> None:
         self.bot = bot
 
-    @app_commands.command(name="addmusic", description="Adiciona uma música exclusiva ao cofre do Google Drive.")
-    @app_commands.describe(url="URL do vídeo do YouTube associado", arquivo="O arquivo MP3 da música")
-    @is_admin()
-    async def add_music(self, interaction: discord.Interaction, url: str, arquivo: discord.Attachment) -> None:
-        await interaction.response.defer(thinking=True, ephemeral=False)
+    @commands.command(name="addmusic", description="Adiciona uma música exclusiva ao cofre do Google Drive.")
+    @commands.has_permissions(administrator=True)
+    async def add_music(self, ctx: commands.Context, url: str) -> None:
+        if not ctx.message.attachments:
+            await ctx.send(embed=make_error_embed("Você precisa anexar o arquivo MP3 da música na mesma mensagem!"))
+            return
+            
+        arquivo = ctx.message.attachments[0]
         
         if not arquivo.content_type or not arquivo.content_type.startswith('audio/'):
-            await interaction.followup.send(embed=make_error_embed("O arquivo anexado deve ser um áudio válido (ex: MP3)."))
+            await ctx.send(embed=make_error_embed("O arquivo anexado deve ser um áudio válido (ex: MP3)."))
             return
 
-        match = re.search(r"(?:v=|youtu\.be/|shorts/)([\w-]{11})", url)
-        if not match:
-            await interaction.followup.send(embed=make_error_embed("URL do YouTube inválida."))
-            return
+        async with ctx.typing():
+            match = re.search(r"(?:v=|youtu\.be/|shorts/)([\w-]{11})", url)
+            if not match:
+                await ctx.send(embed=make_error_embed("URL do YouTube inválida."))
+                return
             
         video_id = match.group(1)
         
@@ -134,7 +141,7 @@ class AddMusicCog(commands.Cog):
         items = await drive_vault_service.list_vault()
         for item in items:
             if item.get('appProperties', {}).get('youtubeVideoId') == video_id:
-                await interaction.followup.send(embed=make_error_embed(f"⚠️ Essa música (ID: `{video_id}`) já existe no cofre."))
+                await ctx.send(embed=make_error_embed(f"⚠️ Essa música (ID: `{video_id}`) já existe no cofre."))
                 return
 
         # 2. Puxa Metadata do YouTube (oEmbed)
@@ -166,9 +173,9 @@ class AddMusicCog(commands.Cog):
                 description=f"🎵 **{title}**\n☁️ Google Drive\n💾 {arquivo.size / (1024*1024):.2f} MB",
                 color=Colors.SUCCESS
             )
-            await interaction.followup.send(embed=embed)
+            await ctx.send(embed=embed)
         else:
-            await interaction.followup.send(embed=make_error_embed("Erro ao realizar o upload para o Google Drive. Verifique os logs do bot."))
+            await ctx.send(embed=make_error_embed("Erro ao realizar o upload para o Google Drive. Verifique os logs do bot."))
 
 async def setup(bot: JanioBot) -> None:
     await bot.add_cog(VaultCog(bot))
