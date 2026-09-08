@@ -415,6 +415,25 @@ class PrefixCommandsCog(commands.Cog):
         cog = self._cog(MusicCog)
         await MusicCog.play.callback(cog, _as_interaction(context), busca)
 
+    @commands.command(name="sair", aliases=("leave", "disconnect", "dc"))
+    @commands.guild_only()
+    async def leave_shortcut(self, context: commands.Context[JanioBot]) -> None:
+        cog = self._cog(MusicCog)
+        await MusicCog.leave.callback(cog, _as_interaction(context))
+
+    @commands.command(name="pular", aliases=("skip", "s"))
+    @commands.guild_only()
+    async def skip_shortcut(self, context: commands.Context[JanioBot]) -> None:
+        cog = self._cog(MusicCog)
+        await MusicCog.skip.callback(cog, _as_interaction(context))
+
+    @commands.command(name="parar", aliases=("stop",))
+    @commands.guild_only()
+    async def stop_shortcut(self, context: commands.Context[JanioBot]) -> None:
+        cog = self._cog(MusicCog)
+        await MusicCog.stop.callback(cog, _as_interaction(context))
+
+
 
 class PrefixBettingCog(commands.Cog):
     def __init__(self, bot: JanioBot) -> None:
