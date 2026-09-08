@@ -72,18 +72,29 @@ class DriveVaultService:
 
     def _sync_search_by_video_id(self, video_id: str) -> str | None:
         try:
-            # Busca baseada no appProperties e se está na nossa pasta
-            query = f"'{self.folder_id}' in parents and appProperties has {{ key='youtubeVideoId' and value='{video_id}' }} and trashed = false"
+            # Como a indexação do appProperties no Google Drive é lenta,
+            # listamos os arquivos da pasta e filtramos localmente
+            query = f"'{self.folder_id}' in parents and trashed = false"
+            
+            # Precisamos pedir o appProperties também
             results = self.service.files().list(
-                q=query, spaces='drive', fields='files(id, name)'
+                q=query, spaces='drive', fields='files(id, name, appProperties)'
             ).execute()
             
             items = results.get('files', [])
-            if not items:
+            
+            target_item = None
+            for item in items:
+                props = item.get('appProperties', {})
+                if props.get('youtubeVideoId') == video_id:
+                    target_item = item
+                    break
+                    
+            if not target_item:
                 return None
                 
-            file_id = items[0]['id']
-            file_name = items[0]['name']
+            file_id = target_item['id']
+            file_name = target_item['name']
             
             ext = os.path.splitext(file_name)[1]
             if not ext:
