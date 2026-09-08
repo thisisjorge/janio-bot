@@ -118,12 +118,13 @@ class MusicCog(
         tracks: wavelink.Search = []
         is_youtube = "youtube.com" in busca or "youtu.be" in busca
         
-        try:
-            tracks = await wavelink.Playable.search(busca)
-        except Exception as e:
-            LOGGER.warning(f"Normal search failed: {e}")
+        if not is_youtube:
+            try:
+                tracks = await wavelink.Playable.search(busca)
+            except Exception as e:
+                LOGGER.warning(f"Normal search failed: {e}")
 
-        # Se falhou e é youtube, tenta os fallbacks
+        # Se falhou (ou se é youtube puro que o Lavalink não toca mais), tenta os fallbacks
         if not tracks and is_youtube:
             # Extrai video id
             match = re.search(r"(?:v=|youtu\.be/|shorts/)([\w-]{11})", busca)
@@ -143,31 +144,31 @@ class MusicCog(
                 except Exception as e:
                     LOGGER.error(f"oEmbed fetch failed: {e}")
 
-                # 2. Try SoundCloud mirror
-                try:
-                    mirror_search = await wavelink.Playable.search(f"scsearch:{title}")
-                    if mirror_search:
-                        tracks = mirror_search
-                        LOGGER.info(f"Found mirror on SoundCloud for {title}")
-                except Exception:
-                    pass
+                # 2. Tenta encontrar no cofre do Google Drive primeiro
+                local_path = await drive_vault_service.search_by_video_id(video_id)
+                if local_path:
+                    # Pesquisa como se fosse um arquivo local (exige local: true no application.yml)
+                    try:
+                        tracks = await wavelink.Playable.search(local_path)
+                        if tracks:
+                            # Injeta os metadados reais para a Embed ficar bonita
+                            tracks[0].title = title
+                            if thumbnail:
+                                tracks[0].artwork = thumbnail
+                            tracks[0].source = "drive_fallback"
+                            tracks[0].uri = busca # mantém a URL original na interface
+                    except Exception as e:
+                        LOGGER.error(f"Failed to load local track: {e}")
 
-                # 3. Se não achou mirror, tenta no Google Drive
+                # 3. Se não achou no cofre, tenta mirror no SoundCloud
                 if not tracks:
-                    local_path = await drive_vault_service.search_by_video_id(video_id)
-                    if local_path:
-                        # Pesquisa como se fosse um arquivo local (exige local: true no application.yml)
-                        try:
-                            tracks = await wavelink.Playable.search(local_path)
-                            if tracks:
-                                # Injeta os metadados reais para a Embed ficar bonita
-                                tracks[0].title = title
-                                if thumbnail:
-                                    tracks[0].artwork = thumbnail
-                                tracks[0].source = "drive_fallback"
-                                tracks[0].uri = busca # mantém a URL original na interface
-                        except Exception as e:
-                            LOGGER.error(f"Failed to load local track: {e}")
+                    try:
+                        mirror_search = await wavelink.Playable.search(f"scsearch:{title}")
+                        if mirror_search:
+                            tracks = mirror_search
+                            LOGGER.info(f"Found mirror on SoundCloud for {title}")
+                    except Exception:
+                        pass
 
         if not tracks:
             await interaction.followup.send(embed=make_error_embed("Nenhuma música encontrada nas fontes normais ou no Drive."))
