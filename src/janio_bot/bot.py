@@ -12,8 +12,9 @@ from janio_bot.database import Database
 from janio_bot.errors import JanioError
 from janio_bot.services.ddragon import DataDragonClient
 from janio_bot.services.metabot import MetaBotClient
-from janio_bot.services.music import MusicExtractor
 from janio_bot.services.riot import RiotClient
+import wavelink
+from janio_bot.ui import make_error_embed
 
 LOGGER = logging.getLogger(__name__)
 
@@ -22,21 +23,22 @@ BASE_EXTENSIONS = (
     "janio_bot.cogs.points",
     "janio_bot.cogs.announcements",
     "janio_bot.cogs.music",
+    "janio_bot.cogs.prefix",
+    "janio_bot.cogs.betting",
+    "janio_bot.cogs.league",
+    "janio_bot.cogs.lastfm",
+    "janio_bot.cogs.vault",
 )
-
-MODE_EXTENSION = {
-    RuntimeMode.COMMUNITY: "janio_bot.cogs.betting",
-    RuntimeMode.LEAGUE: "janio_bot.cogs.league",
-}
 
 
 async def send_interaction_error(
     interaction: discord.Interaction, message: str
 ) -> None:
+    embed = make_error_embed(message)
     if interaction.response.is_done():
-        await interaction.followup.send(message, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
     else:
-        await interaction.response.send_message(message, ephemeral=True)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 class JanioCommandTree(app_commands.CommandTree["JanioBot"]):
@@ -45,17 +47,17 @@ class JanioCommandTree(app_commands.CommandTree["JanioBot"]):
     ) -> None:
         original = error.original if isinstance(error, app_commands.CommandInvokeError) else error
         if isinstance(original, JanioError):
-            await send_interaction_error(interaction, f"❌ {original}")
+            await send_interaction_error(interaction, str(original))
             return
         if isinstance(original, app_commands.MissingPermissions):
             await send_interaction_error(
-                interaction, "❌ Você não tem permissão para usar este comando."
+                interaction, "Você não tem permissão para usar este comando."
             )
             return
         if isinstance(original, app_commands.BotMissingPermissions):
             missing = ", ".join(original.missing_permissions)
             await send_interaction_error(
-                interaction, f"❌ O bot não tem as permissões necessárias: {missing}."
+                interaction, f"O bot não tem as permissões necessárias: {missing}."
             )
             return
         LOGGER.exception(
@@ -64,7 +66,7 @@ class JanioCommandTree(app_commands.CommandTree["JanioBot"]):
             exc_info=original,
         )
         await send_interaction_error(
-            interaction, "❌ Ocorreu um erro inesperado. Tente novamente em instantes."
+            interaction, "Ocorreu um erro inesperado. Tente novamente em instantes."
         )
 
 
@@ -72,13 +74,16 @@ class JanioBot(commands.Bot):
     def __init__(self, settings: Settings) -> None:
         intents = discord.Intents.none()
         intents.guilds = True
+        intents.messages = True
+        intents.message_content = True
         intents.voice_states = True
         super().__init__(
-            command_prefix=commands.when_mentioned,
+            command_prefix=commands.when_mentioned_or("j!", "J!"),
             intents=intents,
             tree_cls=JanioCommandTree,
             allowed_mentions=discord.AllowedMentions.none(),
             help_command=None,
+            case_insensitive=True,
         )
         self.settings = settings
         self.database = Database(
@@ -97,14 +102,12 @@ class JanioBot(commands.Bot):
         )
         self.metabot = MetaBotClient(self.web_client, endpoint=settings.metabot_url)
         self.riot = RiotClient(self.web_client, settings.riot_api_key)
-        self.music_extractor = MusicExtractor()
 
     async def setup_hook(self) -> None:
         await self.database.initialize()
-        extensions = (*BASE_EXTENSIONS, MODE_EXTENSION[self.settings.mode])
-        for extension in extensions:
+        for extension in BASE_EXTENSIONS:
             await self.load_extension(extension)
-        LOGGER.info("Janio Bot iniciado no modo %s.", self.settings.mode.value)
+        LOGGER.info("Janio Bot iniciado com todos os módulos (Unlocked).")
 
         if not self.settings.sync_commands:
             LOGGER.info("Sincronização de slash commands desativada.")
@@ -118,13 +121,74 @@ class JanioBot(commands.Bot):
                 len(synced),
                 guild.id,
             )
-        else:
-            synced = await self.tree.sync()
-            LOGGER.info("%d comandos globais sincronizados.", len(synced))
+
+        synced = await self.tree.sync()
+        LOGGER.info("%d comandos globais sincronizados.", len(synced))
 
     async def on_ready(self) -> None:
         if self.user is not None:
             LOGGER.info("Janio Bot conectado como %s (%d).", self.user, self.user.id)
+            
+        nodes = [wavelink.Node(uri="http://127.0.0.1:2333", password="youshallnotpass")]
+        await wavelink.Pool.connect(nodes=nodes, client=self, cache_capacity=100)
+
+    async def on_command_error(
+        self,
+        context: commands.Context[JanioBot],  # type: ignore[override]
+        error: commands.CommandError,
+    ) -> None:
+        if isinstance(error, commands.CommandNotFound):
+            return
+
+        original = error.original if isinstance(error, commands.CommandInvokeError) else error
+        if isinstance(original, JanioError):
+            await context.send(embed=make_error_embed(str(original)))
+            return
+        if isinstance(original, commands.MissingPermissions):
+            try:
+                await context.send(embed=make_error_embed("Você não tem permissão para usar este comando."))
+            except discord.Forbidden:
+                await context.send("❌ Você não tem permissão para usar este comando.")
+            return
+        if isinstance(original, commands.BotMissingPermissions):
+            missing = ", ".join(original.missing_permissions)
+            try:
+                await context.send(embed=make_error_embed(f"O bot não tem as permissões necessárias: {missing}."))
+            except discord.Forbidden:
+                await context.send(f"❌ O bot não tem as permissões necessárias: {missing}.")
+            return
+        if isinstance(original, commands.NoPrivateMessage):
+            await context.send(embed=make_error_embed("Este comando precisa ser usado dentro de um servidor."))
+            return
+        if isinstance(
+            original,
+            (commands.MissingRequiredArgument, commands.BadArgument, commands.BadUnionArgument),
+        ):
+            detail = str(original)
+            usage = (
+                f"{context.clean_prefix}{context.command.qualified_name} "
+                f"{context.command.signature}"
+                if context.command is not None
+                else f"{context.clean_prefix}ajuda"
+            )
+            await context.send(embed=make_error_embed(f"{detail}\nUso: `{usage.strip()}`"))
+            return
+        if isinstance(original, commands.CheckFailure):
+            await context.send(embed=make_error_embed("Você não pode usar este comando neste contexto."))
+            return
+
+        LOGGER.exception(
+            "Erro inesperado no comando de texto %s",
+            context.command.qualified_name if context.command else "?",
+            exc_info=original,
+        )
+        try:
+            await context.send(embed=make_error_embed("Ocorreu um erro inesperado. Tente novamente em instantes."))
+        except discord.Forbidden:
+            try:
+                await context.send("❌ Ocorreu um erro inesperado e eu não tenho permissão de enviar 'Embeds' (Inserir Links) neste canal para mostrar os detalhes.")
+            except discord.Forbidden:
+                pass
 
     async def close(self) -> None:
         await self.web_client.aclose()

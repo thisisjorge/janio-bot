@@ -108,6 +108,11 @@ CREATE TABLE IF NOT EXISTS guild_settings (
     updated_at                      INTEGER NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS lastfm_sessions (
+    user_id INTEGER PRIMARY KEY,
+    session_key TEXT NOT NULL
+);
+
 PRAGMA user_version = 1;
 """
 
@@ -887,3 +892,30 @@ class Database:
             interval_seconds=int(row["announcement_interval_seconds"]),
             enabled=bool(row["announcement_enabled"]),
         )
+
+    async def get_lastfm_session(self, user_id: int) -> str | None:
+        async with self._connect() as conn:
+            async with conn.execute(
+                "SELECT session_key FROM lastfm_sessions WHERE user_id = ?",
+                (user_id,)
+            ) as cursor:
+                row = await cursor.fetchone()
+                return str(row["session_key"]) if row else None
+
+    async def set_lastfm_session(self, user_id: int, session_key: str) -> None:
+        async with self._connect() as conn:
+            await conn.execute(
+                """
+                INSERT INTO lastfm_sessions (user_id, session_key)
+                VALUES (?, ?)
+                ON CONFLICT(user_id) DO UPDATE SET session_key = excluded.session_key
+                """,
+                (user_id, session_key)
+            )
+            await conn.commit()
+
+    async def delete_lastfm_session(self, user_id: int) -> None:
+        async with self._connect() as conn:
+            await conn.execute("DELETE FROM lastfm_sessions WHERE user_id = ?", (user_id,))
+            await conn.commit()
+

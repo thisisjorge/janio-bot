@@ -10,6 +10,7 @@ from discord.ext import commands, tasks
 
 from janio_bot.bot import JanioBot
 from janio_bot.models import MarketSnapshot, MarketStatus
+from janio_bot.ui import make_embed, make_success_embed, make_error_embed, Colors
 
 LOGGER = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ def market_embed(snapshot: MarketSnapshot) -> discord.Embed:
         MarketStatus.SETTLED: discord.Color.blurple(),
         MarketStatus.CANCELLED: discord.Color.light_grey(),
     }[market.status]
-    embed = discord.Embed(
+    embed = make_embed(
         title=f"🎯 Previsão #{market.id}: {market.title}",
         description=(
             f"**Status:** {STATUS_LABELS[market.status]}\n"
@@ -147,12 +148,12 @@ class BettingCog(
         assert interaction.guild_id is not None
         if interaction.channel_id is None:
             await interaction.response.send_message(
-                "Este comando precisa ser usado em um canal.", ephemeral=True
+                embed=make_error_embed("Este comando precisa ser usado em um canal."), ephemeral=True
             )
             return
         if len(titulo) > 150 or len(opcao_a) > 80 or len(opcao_b) > 80:
             await interaction.response.send_message(
-                "Título: até 150 caracteres. Cada opção: até 80.", ephemeral=True
+                embed=make_error_embed("Título: até 150 caracteres. Cada opção: até 80."), ephemeral=True
             )
             return
         market = await self.bot.database.create_market(
@@ -196,11 +197,13 @@ class BettingCog(
             valor,
         )
         await interaction.response.send_message(
-            (
-                f"✅ Aposta de **{receipt.amount:,} pontos** na opção "
-                f"**{receipt.option}** registrada. Saldo: "
-                f"**{receipt.new_balance:,}**."
-            ).replace(",", "."),
+            embed=make_success_embed(
+                (
+                    f"Aposta de **{receipt.amount:,} pontos** na opção "
+                    f"**{receipt.option}** registrada.\nSaldo atual: "
+                    f"**{receipt.new_balance:,}**."
+                ).replace(",", ".")
+            ),
             ephemeral=True,
         )
         await self.refresh_market_message(interaction.guild_id, mercado)
@@ -221,13 +224,13 @@ class BettingCog(
         markets = await self.bot.database.list_open_markets(interaction.guild_id)
         if not markets:
             await interaction.response.send_message(
-                "Não há previsões abertas.", ephemeral=True
+                embed=make_error_embed("Não há previsões abertas."), ephemeral=True
             )
             return
-        embed = discord.Embed(
+        embed = make_embed(
             title="🎯 Previsões abertas",
             description=open_markets_description(markets),
-            color=discord.Color.green(),
+            color=Colors.SUCCESS,
         )
         await interaction.response.send_message(embed=embed)
 
@@ -239,7 +242,7 @@ class BettingCog(
         assert interaction.guild_id is not None
         await self.bot.database.close_market(interaction.guild_id, mercado)
         await interaction.response.send_message(
-            f"🔒 Previsão **#{mercado}** fechada para novas apostas."
+            embed=make_success_embed(f"Previsão **#{mercado}** fechada para novas apostas.")
         )
         await self.refresh_market_message(interaction.guild_id, mercado)
 
@@ -267,7 +270,7 @@ class BettingCog(
                 f"**{len(settlement.payouts)}** vencedor(es)."
             ).replace(",", ".")
         await interaction.response.send_message(
-            f"🏆 Previsão **#{mercado}** resolvida: opção **{vencedora}**.\n{detail}"
+            embed=make_success_embed(f"Previsão **#{mercado}** resolvida: opção **{vencedora}**.\n{detail}")
         )
         await self.refresh_market_message(interaction.guild_id, mercado)
 
@@ -281,11 +284,13 @@ class BettingCog(
         assert interaction.guild_id is not None
         result = await self.bot.database.cancel_market(interaction.guild_id, mercado)
         await interaction.response.send_message(
-            (
-                f"↩️ Previsão **#{mercado}** cancelada. "
-                f"**{result.total_refunded:,} pontos** devolvidos a "
-                f"**{result.users_refunded}** participante(s)."
-            ).replace(",", ".")
+            embed=make_success_embed(
+                (
+                    f"Previsão **#{mercado}** cancelada.\n"
+                    f"**{result.total_refunded:,} pontos** devolvidos a "
+                    f"**{result.users_refunded}** participante(s)."
+                ).replace(",", ".")
+            )
         )
         await self.refresh_market_message(interaction.guild_id, mercado)
 
